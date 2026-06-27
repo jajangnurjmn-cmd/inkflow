@@ -396,4 +396,48 @@ body {
     resize: none;
     outline: none;
     font-family: inherit;
-}                                     
+}  
+
+/* =========================================
+   RESPONSIVITAS DESKTOP & TABLET
+   (Pastikan kode ini ada di bagian paling bawah style.css)
+========================================= */
+body {
+    max-width: 768px; /* Mengunci lebar ala Tablet/Desktop */
+    margin: 0 auto; /* Posisi ke tengah */
+    border-left: 1px solid #1a1a1a;
+    border-right: 1px solid #1a1a1a;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    position: relative;
+}
+
+/* Memaksa layar overlay tetap di tengah */
+#editor-screen, 
+#story-detail-screen, 
+#bible-screen, 
+#bible-editor-screen {
+    max-width: 768px;
+    left: 50% !important;
+    transform: translateX(-50%);
+}
+
+/* Desain Tombol Aksi Kecil (Edit/Hapus) */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.btn-small {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-small:active { opacity: 0.7; }
+.btn-edit { background-color: #2c3e50; color: #3498db; }
+.btn-delete { background-color: #3b1c1c; color: #e74c3c; }
