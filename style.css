@@ -321,3 +321,19 @@ body {
     background-color: #2d1b4e;
     color: #d8b4fe;
 }
+/* =========================================
+   STRUKTUR LAYAR BIBLE (FLEXBOX)
+   ========================================= */
+   #bible-screen,
+   #bible-editor-screen {
+       position: fixed;
+           top: 0;
+               left: 0;
+                   width: 100%;
+                       height: 100vh; /* Memaksa layar penuh 100% tinggi layar HP */
+                           background-color: #000000;
+                               z-index: 110; /* Berada di lapisan paling atas */
+                                   display: flex;
+                                       flex-direction: column; /* Menyusun elemen dari atas ke bawah */
+                                       }
+                                       
