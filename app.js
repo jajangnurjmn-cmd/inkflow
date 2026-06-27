@@ -7,32 +7,24 @@ let db;
 
 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-// Membuat tabel/store saat database pertama kali diinisialisasi
 request.onupgradeneeded = function(event) {
     const dbInstance = event.target.result;
     
-    // Store untuk data Cerita Utama (Judul, Sinopsis, Status, Tag)
     if (!dbInstance.objectStoreNames.contains('stories')) {
         dbInstance.createObjectStore('stories', { keyPath: 'id', autoIncrement: true });
     }
-    
-    // Store untuk Chapter Cerita
     if (!dbInstance.objectStoreNames.contains('chapters')) {
         dbInstance.createObjectStore('chapters', { keyPath: 'id', autoIncrement: true });
     }
-    
-    // Store untuk Modul Story Bible (Karakter, Dunia, Dinamika)
     if (!dbInstance.objectStoreNames.contains('story_bible')) {
         dbInstance.createObjectStore('story_bible', { keyPath: 'id', autoIncrement: true });
     }
-    
     console.log("Database IndexedDB berhasil disiapkan.");
 };
 
 request.onsuccess = function(event) {
     db = event.target.result;
     console.log("Database berhasil dibuka.");
-    // Setelah database siap, kita bisa memuat data ke dashboard
     loadDashboardData();
 };
 
@@ -41,10 +33,8 @@ request.onerror = function(event) {
 };
 
 // ==========================================================================
-// 2. LOGIKA OPERASI DATA (Fungsi Inti)
+// 2. LOGIKA OPERASI DATA & DASHBOARD
 // ==========================================================================
-
-// Fungsi mendasar untuk menambah cerita baru
 function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
     const transaction = db.transaction(['stories'], 'readwrite');
     const store = transaction.objectStore('stories');
@@ -53,23 +43,15 @@ function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
         judul: judul,
         sinopsis: sinopsis,
         tag: tag,
-        status: status, // Draft, Editing, Complete, Published
+        status: status,
         createdAt: new Date().toISOString()
     };
     
-    const requestAdd = store.add(ceritaBaru);
-    
-    requestAdd.onsuccess = function() {
-        console.log("Cerita baru berhasil disimpan ke penyimpanan lokal!");
-        loadDashboardData(); // Refresh tampilan dashboard
-    };
-    
-    requestAdd.onerror = function() {
-        console.error("Gagal menyimpan cerita.");
+    store.add(ceritaBaru).onsuccess = function() {
+        loadDashboardData();
     };
 }
 
-// Fungsi simulasi untuk mengambil dan menghitung data di Dashboard
 function loadDashboardData() {
     if (!db) return;
 
@@ -77,21 +59,40 @@ function loadDashboardData() {
     const store = transaction.objectStore('stories');
     const getAllRequest = store.getAll();
 
-getAllRequest.onsuccess = function(event) {
+    getAllRequest.onsuccess = function(event) {
         const semuaCerita = event.target.result;
         
-        // Logika Kalkulasi Indikator Dashboard
         let hitungDraft = 0;
         let hitungEditing = 0;
         let hitungPublished = 0;
 
-        // Render data asli dari IndexedDB
+        semuaCerita.forEach(cerita => {
+            if (cerita.status.toLowerCase() === 'draft') hitungDraft++;
+            if (cerita.status.toLowerCase() === 'editing') hitungEditing++;
+            if (cerita.status.toLowerCase() === 'published') hitungPublished++;
+        });
+
+        const elDraft = document.getElementById('count-draft');
+        const elEditing = document.getElementById('count-editing');
+        const elPublished = document.getElementById('count-published');
+        
+        if(elDraft) elDraft.innerText = hitungDraft;
+        if(elEditing) elEditing.innerText = hitungEditing;
+        if(elPublished) elPublished.innerText = hitungPublished;
+        
+        const projectList = document.querySelector('.project-list');
+        projectList.innerHTML = '<h2>Proyek Aktif</h2>';
+        
+        if (semuaCerita.length === 0) {
+            projectList.innerHTML += '<p style="color: #888; font-size: 0.9rem; text-align: center; margin-top: 20px;">Belum ada cerita. Klik tombol di bawah untuk mulai.</p>';
+            return;
+        }
+
         semuaCerita.forEach(cerita => {
             const card = document.createElement('div');
             card.className = 'focus-block project-card';
             card.style.cursor = 'pointer';
             
-            // Klik kartu untuk buka detail
             card.onclick = () => bukaDetailCerita(cerita);
 
             const statusClass = cerita.status.toLowerCase() === 'editing' ? 'badge-editing' : (cerita.status.toLowerCase() === 'published' ? 'badge-published' : 'badge-draft');
@@ -102,19 +103,16 @@ getAllRequest.onsuccess = function(event) {
                 <span class="badge ${statusClass}">${cerita.status}</span>
             `;
 
-            // Membuat Kontainer Tombol Aksi (Edit & Hapus)
             const actionDiv = document.createElement('div');
             actionDiv.className = 'card-actions';
 
-            // Tombol Edit Metadata Cerita
             const btnEdit = document.createElement('button');
             btnEdit.className = 'btn-small btn-edit';
             btnEdit.innerText = 'Edit Info';
             btnEdit.onclick = (e) => {
-                e.stopPropagation(); // Mencegah kartu ikut terklik (masuk ke detail)
-                
+                e.stopPropagation(); 
                 const judulBaru = prompt("Edit Judul:", cerita.judul);
-                if (judulBaru === null) return; // Batal diedit
+                if (judulBaru === null) return; 
                 
                 const sinopsisBaru = prompt("Edit Sinopsis:", cerita.sinopsis);
                 const tagBaru = prompt("Edit Tag:", cerita.tag);
@@ -127,21 +125,15 @@ getAllRequest.onsuccess = function(event) {
                 tx.objectStore('stories').put(cerita).onsuccess = () => loadDashboardData();
             };
 
-            // Tombol Hapus Cerita (Cascade Delete)
             const btnDel = document.createElement('button');
             btnDel.className = 'btn-small btn-delete';
             btnDel.innerText = 'Hapus';
             btnDel.onclick = (e) => {
-                e.stopPropagation(); // Mencegah kartu ikut terklik
-                
-                if(confirm(`PERINGATAN TATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen? Seluruh Chapter dan Story Bible di dalamnya akan ikut lenyap.`)) {
-                    
+                e.stopPropagation(); 
+                if(confirm(`PERINGATAN FATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen? Seluruh Chapter dan Story Bible di dalamnya akan ikut lenyap.`)) {
                     const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
-                    
-                    // 1. Hapus Cerita Utama
                     tx.objectStore('stories').delete(cerita.id);
                     
-                    // 2. Hapus Semua Chapter yang Terikat
                     tx.objectStore('chapters').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
@@ -150,7 +142,6 @@ getAllRequest.onsuccess = function(event) {
                         }
                     };
                     
-                    // 3. Hapus Semua Story Bible yang Terikat
                     tx.objectStore('story_bible').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
@@ -158,119 +149,59 @@ getAllRequest.onsuccess = function(event) {
                             cursor.continue();
                         }
                     };
-
-                    tx.oncomplete = () => loadDashboardData(); // Refresh UI
+                    tx.oncomplete = () => loadDashboardData(); 
                 }
             };
 
             actionDiv.appendChild(btnEdit);
             actionDiv.appendChild(btnDel);
             card.appendChild(actionDiv);
-
-            projectList.appendChild(card);
-        });
-    
-        // EKSEKUSI DOM: Memasukkan hasil hitungan ke dalam HTML
-        const elDraft = document.getElementById('count-draft');
-        const elEditing = document.getElementById('count-editing');
-        const elPublished = document.getElementById('count-published');
-        
-        if(elDraft) elDraft.innerText = hitungDraft;
-        if(elEditing) elEditing.innerText = hitungEditing;
-        if(elPublished) elPublished.innerText = hitungPublished;
-        
-        // Targetkan area daftar cerita di HTML
-        const projectList = document.querySelector('.project-list');
-        
-        // Bersihkan data dummy, sisakan hanya Judul Section
-        projectList.innerHTML = '<h2>Proyek Aktif</h2>';
-        
-        // Jika database masih kosong
-        if (semuaCerita.length === 0) {
-            projectList.innerHTML += '<p style="color: #888; font-size: 0.9rem; text-align: center; margin-top: 20px;">Belum ada cerita. Klik tombol di bawah untuk mulai.</p>';
-            return;
-        }
-
-        // Render data asli dari IndexedDB
-        semuaCerita.forEach(cerita => {
-            const card = document.createElement('div');
-            card.className = 'focus-block project-card';
-            card.style.cursor = 'pointer'; // Mengubah kursor jadi telunjuk agar terasa bisa diklik
-            
-           // SEBELUMNYA: card.onclick = () => { bukaEditor(cerita); };
-            // GANTI MENJADI:
-            card.onclick = () => {
-                bukaDetailCerita(cerita);
-            };
-
-            // Status warna badge dinamis
-            const statusClass = cerita.status.toLowerCase() === 'editing' ? 'badge-editing' : 'badge-draft';
-
-            card.innerHTML = `
-                <h3>${cerita.judul}</h3>
-                <p class="meta-data">${cerita.sinopsis.substring(0, 30)}... | Tag: ${cerita.tag}</p>
-                <span class="badge ${statusClass}">${cerita.status}</span>
-            `;
-            
             projectList.appendChild(card);
         });
     };
 }
 
 // ==========================================================================
-// 3. INTERAKSI UI & MANIPULASI DOM
+// 3. SERVICE WORKER & UI AWAL
 // ==========================================================================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .catch(err => console.error('Pendaftaran Service Worker gagal:', err));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const btnTulis = document.querySelector('.fab-action');
-    
     if (btnTulis) {
         btnTulis.addEventListener('click', () => {
-            // Logika interaksi: Sesuai panduan One UI, aksi ini memicu transisi halaman atau dialog pop-up.
-            // Untuk pengujian awal, kita gunakan prompt browser bawaan terlebih dahulu.
             const judulInput = prompt("Masukkan Judul Cerita:");
             if (!judulInput) return;
-            
             const sinopsisInput = prompt("Masukkan Sinopsis Singkat:");
             const tagInput = prompt("Masukkan Tag (Contoh: Misteri, Sci-Fi):");
-            
-            // Eksekusi penyimpanan ke IndexedDB
             tambahCerita(judulInput, sinopsisInput, tagInput, 'Draft');
         });
     }
 });
 
 // ==========================================================================
-// 4. REGISTRASI SERVICE WORKER (Syarat Wajib PWA agar bisa Offline)
+// 4. ARSITEKTUR NAVIGASI & EDITOR
 // ==========================================================================
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker berhasil didaftarkan!', reg.scope))
-            .catch(err => console.error('Pendaftaran Service Worker gagal:', err));
-    });
-}
-
-// ==========================================================================
-// 5. ARSITEKTUR NAVIGASI (SPA Routing)
-// ==========================================================================
-
-// Membuka halaman detail cerita dan mengambil daftar chapter dari DB
 function bukaDetailCerita(cerita) {
-    // Sembunyikan Dashboard
     document.querySelector('.viewing-area').classList.add('hidden');
     document.querySelector('.interaction-area').classList.add('hidden');
     document.querySelector('.fab-action').classList.add('hidden');
     
-    // Tampilkan Halaman Detail
     const detailScreen = document.getElementById('story-detail-screen');
     detailScreen.classList.remove('hidden');
     detailScreen.dataset.activeStoryId = cerita.id;
     
-    // Set Data Cerita
     document.getElementById('detail-story-title').innerText = cerita.judul;
     document.getElementById('detail-story-synopsis').innerText = cerita.sinopsis;
     
-    // Muat daftar chapter milik cerita ini
+    const dropdown = document.getElementById('story-status-dropdown');
+    if (dropdown) dropdown.value = cerita.status;
+    
     muatDaftarChapter(cerita.id);
 }
 
@@ -278,11 +209,11 @@ function muatDaftarChapter(storyId) {
     const transaction = db.transaction(['chapters'], 'readonly');
     const store = transaction.objectStore('chapters');
     const container = document.getElementById('chapters-container');
-    container.innerHTML = ''; // Bersihkan kontainer
+    if (!container) return; // Keamanan tambahan
+    container.innerHTML = '';
 
     store.getAll().onsuccess = function(event) {
         const semuaChapter = event.target.result;
-        // Filter hanya chapter yang memiliki storyId cocok dengan cerita aktif
         const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === Number(storyId));
 
         if (chapterCeritaIni.length === 0) {
@@ -293,7 +224,7 @@ function muatDaftarChapter(storyId) {
         chapterCeritaIni.forEach(ch => {
             const chCard = document.createElement('div');
             chCard.className = 'chapter-card';
-            chCard.onclick = () => bukaEditor(storyId, ch); // Buka editor dengan data chapter lama
+            chCard.onclick = () => bukaEditor(storyId, ch);
             
             chCard.innerHTML = `
                 <h4>${ch.judulChapter}</h4>
@@ -304,29 +235,23 @@ function muatDaftarChapter(storyId) {
     };
 }
 
-// Fungsi Buka Editor (Modifikasi: Menerima Mode Baru maupun Edit)
 function bukaEditor(storyId, dataChapter = null) {
     document.getElementById('story-detail-screen').classList.add('hidden');
-    
     const editorScreen = document.getElementById('editor-screen');
     editorScreen.classList.remove('hidden');
     editorScreen.dataset.activeStoryId = storyId;
     
     if (dataChapter) {
-        // Mode Edit Chapter Lama
         editorScreen.dataset.activeChapterId = dataChapter.id;
         document.getElementById('editor-title').innerText = "Edit Chapter";
         document.getElementById('chapter-title').value = dataChapter.judulChapter;
         document.getElementById('chapter-content').value = dataChapter.isi;
     } else {
-        // Mode Tulis Chapter Baru
         delete editorScreen.dataset.activeChapterId;
         document.getElementById('editor-title').innerText = "Chapter Baru";
         document.getElementById('chapter-title').value = '';
         document.getElementById('chapter-content').value = '';
     }
-    
-    // Panggil penghitung kata saat editor baru saja dibuka
     hitungKata();
 }
 
@@ -335,23 +260,16 @@ function kembaliKeDashboard() {
     document.querySelector('.viewing-area').classList.remove('hidden');
     document.querySelector('.interaction-area').classList.remove('hidden');
     document.querySelector('.fab-action').classList.remove('hidden');
-    loadDashboardData(); // Refresh data dashboard
+    loadDashboardData();
 }
 
-// Tambahan Modifikasi pada fungsi tutupEditor agar kembali ke Detail Cerita, bukan Dashboard
 function tutupEditor() {
-    // Membungkus navigasi ke dalam fungsi Callback
     simpanDraftChapter(() => {
         const editorScreen = document.getElementById('editor-screen');
         const storyId = editorScreen.dataset.activeStoryId;
-        
-        // 1. Sembunyikan layar Editor
         editorScreen.classList.add('hidden');
-        
-        // Reset memori chapter aktif
         delete editorScreen.dataset.activeChapterId; 
         
-        // 2. Cari data cerita saat ini untuk dikembalikan ke layar detail
         const transaction = db.transaction(['stories'], 'readonly');
         transaction.objectStore('stories').get(Number(storyId)).onsuccess = function(event) {
             bukaDetailCerita(event.target.result);
@@ -360,13 +278,11 @@ function tutupEditor() {
 }
 
 // ==========================================================================
-// 6. ARSITEKTUR EDITOR & AUTO-SAVE (Debounce)
+// 5. EDITOR UTAMA & AUTO-SAVE
 // ==========================================================================
-
 let waktuKetik;
-const JEDA_SIMPAN = 2000; // 2000 milidetik (2 detik)
+const JEDA_SIMPAN = 2000;
 
-// Fungsi utama untuk menyimpan data ke IndexedDB
 function simpanDraftChapter(callback = null) {
     const editorScreen = document.getElementById('editor-screen');
     const storyId = Number(editorScreen.dataset.activeStoryId);
@@ -375,7 +291,6 @@ function simpanDraftChapter(callback = null) {
     const judulChapter = document.getElementById('chapter-title').value;
     const isiKonten = document.getElementById('chapter-content').value;
 
-    // Jika teks kosong, batalkan simpan dan langsung jalankan callback (kembali)
     if (!judulChapter.trim() && !isiKonten.trim()) {
         if (typeof callback === 'function') callback();
         return;
@@ -394,91 +309,47 @@ function simpanDraftChapter(callback = null) {
     let request;
     if (chapterId) {
         dataChapter.id = Number(chapterId);
-        request = store.put(dataChapter); // Update
+        request = store.put(dataChapter);
     } else {
-        request = store.add(dataChapter); // Insert Baru
+        request = store.add(dataChapter);
     }
 
     request.onsuccess = (event) => {
-        if (!chapterId) {
-            editorScreen.dataset.activeChapterId = event.target.result; 
-        }
+        if (!chapterId) editorScreen.dataset.activeChapterId = event.target.result; 
         indikatorTersimpan();
-        
-        // PENTING: Mengeksekusi navigasi hanya SETELAH data sukses disimpan
         if (typeof callback === 'function') callback();
     };
 }
 
-// Fungsi memberikan efek visual saat tulisan berhasil disimpan
 function indikatorTersimpan() {
     const btnSave = document.getElementById('btn-save');
-    const teksAsli = btnSave.innerText;
-    
+    if (!btnSave) return;
     btnSave.innerText = 'Tersimpan ✓';
-    btnSave.style.color = '#4cd964'; // Warna hijau khas sukses
-
-    // Kembalikan tombol ke tulisan 'Simpan' setelah 3 detik
+    btnSave.style.color = '#4cd964';
     setTimeout(() => {
         btnSave.innerText = 'Simpan';
         btnSave.style.color = '#007aff';
     }, 3000);
 }
 
-// Registrasi Event Listener (Sensor Ketikan & Tombol Simpan Manual)
-document.addEventListener('DOMContentLoaded', () => {
-    const areaKetikan = document.getElementById('chapter-content');
-    const areaJudul = document.getElementById('chapter-title');
-    const tombolSimpan = document.getElementById('btn-save');
-
-    // Memicu Auto-Save saat berhenti mengetik di area teks utama
-    areaKetikan.addEventListener('keyup', () => {
-        clearTimeout(waktuKetik);
-        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-    });
-
-    // Memicu Auto-Save saat berhenti mengetik di area judul chapter
-    areaJudul.addEventListener('keyup', () => {
-        clearTimeout(waktuKetik);
-        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-    });
-
-    // Memicu Simpan Manual jika tombol "Simpan" diklik
-    if (tombolSimpan) {
-        tombolSimpan.addEventListener('click', () => {
-            clearTimeout(waktuKetik); // Batalkan auto-save agar tidak terjadi simpan ganda
-            simpanDraftChapter();
-        });
-    }
-});
-
-// Fungsi untuk menghitung kata secara real-time
 function hitungKata() {
     const teks = document.getElementById('chapter-content').value;
-    
-    // Menghapus spasi berlebih di awal/akhir dan memecah kalimat berdasarkan spasi/enter
     const arrayKata = teks.trim().split(/\s+/);
-    
-    // Jika teks kosong, hitung 0. Jika tidak, hitung panjang array-nya
     const jumlahKata = teks.trim() === '' ? 0 : arrayKata.length;
-    
-    document.getElementById('word-count').innerText = `${jumlahKata} Kata`;
+    const el = document.getElementById('word-count');
+    if(el) el.innerText = `${jumlahKata} Kata`;
 }
-// ==========================================================================
-// 9. ARSITEKTUR STORY BIBLE
-// ==========================================================================
 
+// ==========================================================================
+// 6. STORY BIBLE & EXPORT
+// ==========================================================================
 function bukaBibleList() {
-    // Sembunyikan layar detail cerita
     document.getElementById('story-detail-screen').classList.add('hidden');
-    
-    // Tampilkan layar daftar Bible
     const detailScreen = document.getElementById('story-detail-screen');
     const bibleScreen = document.getElementById('bible-screen');
     
     bibleScreen.classList.remove('hidden');
     bibleScreen.dataset.activeStoryId = detailScreen.dataset.activeStoryId;
-    
     muatDaftarBible();
 }
 
@@ -495,17 +366,14 @@ function muatDaftarBible() {
         const bibleCeritaIni = semuaBible.filter(b => b.storyId === storyId);
 
         if (bibleCeritaIni.length === 0) {
-            container.innerHTML = '<p style="color:#666; text-align:center; margin-top:30px;">Belum ada data. Klik "+ Entri" untuk menambah karakter atau referensi.</p>';
+            container.innerHTML = '<p style="color:#666; text-align:center; margin-top:30px;">Belum ada data.</p>';
             return;
         }
 
         bibleCeritaIni.forEach(bible => {
             const card = document.createElement('div');
             card.className = 'bible-card';
-            
-            // Klik untuk mengedit (opsional, bisa dikembangkan nanti)
             card.onclick = () => bukaBibleEditor(bible);
-
             card.innerHTML = `
                 <span class="badge-bible">${bible.kategori}</span>
                 <h4>${bible.nama}</h4>
@@ -527,14 +395,12 @@ function bukaBibleEditor(dataBible = null) {
     editorScreen.classList.remove('hidden');
 
     if (dataBible) {
-        // Mode Edit
         editorScreen.dataset.activeBibleId = dataBible.id;
         document.getElementById('bible-editor-title').innerText = "Edit Entri";
         document.getElementById('bible-category').value = dataBible.kategori;
         document.getElementById('bible-entry-title').value = dataBible.nama;
         document.getElementById('bible-entry-content').value = dataBible.deskripsi;
     } else {
-        // Mode Baru
         delete editorScreen.dataset.activeBibleId;
         document.getElementById('bible-editor-title').innerText = "Entri Baru";
         document.getElementById('bible-category').value = "Karakter";
@@ -557,97 +423,121 @@ function simpanBibleEntry() {
     const nama = document.getElementById('bible-entry-title').value;
     const deskripsi = document.getElementById('bible-entry-content').value;
 
-    if (!nama.trim()) {
-        alert("Nama entri tidak boleh kosong!");
-        return;
-    }
+    if (!nama.trim()) { alert("Nama tidak boleh kosong!"); return; }
 
     const transaction = db.transaction(['story_bible'], 'readwrite');
     const store = transaction.objectStore('story_bible');
 
-    const dataBaru = {
-        storyId: storyId,
-        kategori: kategori,
-        nama: nama,
-        deskripsi: deskripsi,
-        terakhirDiubah: new Date().toISOString()
-    };
-
-    let request;
+    const dataBaru = { storyId, kategori, nama, deskripsi, terakhirDiubah: new Date().toISOString() };
     if (bibleId) {
         dataBaru.id = Number(bibleId);
-        request = store.put(dataBaru);
+        store.put(dataBaru).onsuccess = () => { tutupBibleEditor(); muatDaftarBible(); };
     } else {
-        request = store.add(dataBaru);
+        store.add(dataBaru).onsuccess = () => { tutupBibleEditor(); muatDaftarBible(); };
     }
+}
 
-    request.onsuccess = () => {
-        tutupBibleEditor();
-        muatDaftarBible(); // Refresh daftar saat kembali
+function exportCeritaKeTXT() {
+    const detailScreen = document.getElementById('story-detail-screen');
+    const storyId = Number(detailScreen.dataset.activeStoryId);
+    const judulCerita = document.getElementById('detail-story-title').innerText;
+
+    const transaction = db.transaction(['chapters'], 'readonly');
+    const store = transaction.objectStore('chapters');
+    
+    store.getAll().onsuccess = function(event) {
+        const semuaChapter = event.target.result;
+        const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
+
+        if (chapterCeritaIni.length === 0) {
+            alert("Belum ada teks untuk diekspor!"); return;
+        }
+
+        let kontenExport = `=========================================\n`;
+        kontenExport += `JUDUL: ${judulCerita.toUpperCase()}\n`;
+        kontenExport += `Di-export pada: ${new Date().toLocaleString('id-ID')}\n`;
+        kontenExport += `=========================================\n\n`;
+
+        chapterCeritaIni.forEach((ch) => {
+            kontenExport += `\n--- ${ch.judulChapter.toUpperCase()} ---\n\n${ch.isi}\n\n`;
+        });
+
+        const blob = new Blob([kontenExport], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const elemenDownload = document.createElement('a');
+        elemenDownload.href = url;
+        elemenDownload.download = `${judulCerita.replace(/\s+/g, '_')}_Backup.txt`; 
+        document.body.appendChild(elemenDownload);
+        elemenDownload.click();
+        document.body.removeChild(elemenDownload);
+        URL.revokeObjectURL(url);
     };
 }
+
 // ==========================================================================
-// 7. REGISTRASI SEMUA TOMBOL (Event Listeners)
+// 7. SEMUA EVENT LISTENER
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Tombol Kembali dari Editor ke Detail Cerita
+    // Navigasi
     const btnBackEditor = document.getElementById('btn-back');
-    if (btnBackEditor) {
-        btnBackEditor.addEventListener('click', tutupEditor);
-    }
+    if (btnBackEditor) btnBackEditor.addEventListener('click', tutupEditor);
 
-    // 2. Tombol Kembali dari Detail Cerita ke Dashboard
     const btnBackDashboard = document.getElementById('btn-back-dashboard');
-    if (btnBackDashboard) {
-        btnBackDashboard.addEventListener('click', kembaliKeDashboard);
-    }
+    if (btnBackDashboard) btnBackDashboard.addEventListener('click', kembaliKeDashboard);
     
-    // 3. Tombol Buat Bab Baru di Halaman Detail
     const btnNewChapter = document.getElementById('btn-new-chapter');
-    if (btnNewChapter) {
-        btnNewChapter.addEventListener('click', () => {
-            const storyId = document.getElementById('story-detail-screen').dataset.activeStoryId;
-            bukaEditor(storyId, null);
-        });
-        
-    }
+    if (btnNewChapter) btnNewChapter.addEventListener('click', () => {
+        const storyId = document.getElementById('story-detail-screen').dataset.activeStoryId;
+        bukaEditor(storyId, null);
+    });
 
-    // 4. Pastikan fungsi auto-save juga tetap berjalan
+    // Auto-Save Editor
     const areaKetikan = document.getElementById('chapter-content');
     const areaJudul = document.getElementById('chapter-title');
     const tombolSimpan = document.getElementById('btn-save');
 
-    if (areaKetikan) {
-        areaKetikan.addEventListener('keyup', () => {
-            hitungKata();
-            clearTimeout(waktuKetik);
-            waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-        });
-    }
+    if (areaKetikan) areaKetikan.addEventListener('keyup', () => {
+        hitungKata();
+        clearTimeout(waktuKetik);
+        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
+    });
 
-    if (areaJudul) {
-        areaJudul.addEventListener('keyup', () => {
-            clearTimeout(waktuKetik);
-            waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-        });
-    }
+    if (areaJudul) areaJudul.addEventListener('keyup', () => {
+        clearTimeout(waktuKetik);
+        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
+    });
 
-    if (tombolSimpan) {
-        tombolSimpan.addEventListener('click', () => {
-            clearTimeout(waktuKetik);
-            simpanDraftChapter();
-        });
-    }
-    // (Tambahkan di dalam blok document.addEventListener('DOMContentLoaded', ...) )
+    if (tombolSimpan) tombolSimpan.addEventListener('click', () => {
+        clearTimeout(waktuKetik);
+        simpanDraftChapter();
+    });
     
-    // 5. Tombol Export TXT
+    // Status Dropdown
+    const statusDropdown = document.getElementById('story-status-dropdown');
+    if (statusDropdown) {
+        statusDropdown.addEventListener('change', (e) => {
+            const storyId = Number(document.getElementById('story-detail-screen').dataset.activeStoryId);
+            const statusBaru = e.target.value;
+            const transaction = db.transaction(['stories'], 'readwrite');
+            const store = transaction.objectStore('stories');
+            
+            store.get(storyId).onsuccess = function(event) {
+                const dataCerita = event.target.result;
+                if (dataCerita) {
+                    dataCerita.status = statusBaru;
+                    store.put(dataCerita).onsuccess = () => {
+                        statusDropdown.style.color = '#4cd964';
+                        setTimeout(() => { statusDropdown.style.color = '#fff'; }, 1000);
+                    };
+                }
+            };
+        });
+    }
+
+    // Export & Bible
     const btnExport = document.getElementById('btn-export-txt');
-    if (btnExport) {
-        btnExport.addEventListener('click', exportCeritaKeTXT);
-    }
-    // (Tambahkan di dalam blok document.addEventListener('DOMContentLoaded', ...) )
-    
-    // 6. Navigasi Story Bible
+    if (btnExport) btnExport.addEventListener('click', exportCeritaKeTXT);
+
     const btnOpenBible = document.getElementById('btn-open-bible');
     if (btnOpenBible) btnOpenBible.addEventListener('click', bukaBibleList);
 
@@ -663,54 +553,3 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSaveBible = document.getElementById('btn-save-bible');
     if (btnSaveBible) btnSaveBible.addEventListener('click', simpanBibleEntry);
 });
-
-// ==========================================================================
-// 8. ARSITEKTUR EXPORT & BACKUP
-// ==========================================================================
-function exportCeritaKeTXT() {
-    const detailScreen = document.getElementById('story-detail-screen');
-    const storyId = Number(detailScreen.dataset.activeStoryId);
-    const judulCerita = document.getElementById('detail-story-title').innerText;
-
-    const transaction = db.transaction(['chapters'], 'readonly');
-    const store = transaction.objectStore('chapters');
-    
-    store.getAll().onsuccess = function(event) {
-        const semuaChapter = event.target.result;
-        // Ambil hanya chapter dari cerita yang sedang dibuka
-        const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
-
-        if (chapterCeritaIni.length === 0) {
-            alert("Belum ada teks untuk diekspor!");
-            return;
-        }
-
-        // Susun format teksnya
-        let kontenExport = `=========================================\n`;
-        kontenExport += `JUDUL: ${judulCerita.toUpperCase()}\n`;
-        kontenExport += `Di-export pada: ${new Date().toLocaleString('id-ID')}\n`;
-        kontenExport += `=========================================\n\n`;
-
-        chapterCeritaIni.forEach((ch, index) => {
-            kontenExport += `\n--- ${ch.judulChapter.toUpperCase()} ---\n\n`;
-            kontenExport += `${ch.isi}\n\n`;
-        });
-
-        // Konversi string menjadi file fisik (Blob)
-        const blob = new Blob([kontenExport], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        // Buat link rahasia untuk memicu download otomatis
-        const elemenDownload = document.createElement('a');
-        elemenDownload.href = url;
-        elemenDownload.download = `${judulCerita.replace(/\s+/g, '_')}_Backup.txt`; // Ganti spasi jadi underscore untuk nama file
-        
-        document.body.appendChild(elemenDownload);
-        elemenDownload.click();
-        
-        // Bersihkan memori setelah berhasil download
-        document.body.removeChild(elemenDownload);
-        URL.revokeObjectURL(url);
-    };
-}
-
