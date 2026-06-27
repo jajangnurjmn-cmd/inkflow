@@ -336,4 +336,17 @@ body {
                                    display: flex;
                                        flex-direction: column; /* Menyusun elemen dari atas ke bawah */
                                        }
-                                       
+  /* Aturan khusus agar Editor Bible membentang penuh */
+#bible-entry-content {
+    flex: 1;
+    height: 100%; /* Ini adalah kunci yang memaksa textarea melar sampai bawah */
+    min-height: 50vh; /* Cadangan untuk browser yang lebih kaku */
+    background: none;
+    border: none;
+    color: #cccccc;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+}                                     
