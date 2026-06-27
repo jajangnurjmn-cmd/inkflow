@@ -1,20 +1,24 @@
 {
   "name": "InkFlow Writer",
   "short_name": "InkFlow",
-  "start_url": "./",
+  "description": "Distraction-free environment for writers. Design by Sahawn.",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#121212",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
