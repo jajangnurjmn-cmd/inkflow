@@ -1,0 +1,323 @@
+/* Reset & System Font Stack */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    /* Menerapkan font bawaan perangkat secara otomatis */
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #000000; /* Hitam pekat untuk AMOLED */
+    color: #ffffff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Mengunci body agar tidak scroll keseluruhan */
+}
+
+/* 1. Viewing Area (Atas) */
+.viewing-area {
+    flex: 0.35; /* Mengambil 35% tinggi layar */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 24px;
+}
+
+.viewing-area h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.status-sync {
+    color: #888888;
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+/* 2. Interaction Area (Bawah) */
+.interaction-area {
+    flex: 0.65; /* Mengambil 65% tinggi layar */
+    background-color: #121212; /* Warna abu-abu gelap */
+    border-top-left-radius: 26px; /* Lengkungan One UI */
+    border-top-right-radius: 26px;
+    padding: 24px;
+    overflow-y: auto; /* Scroll hanya terjadi di area ini */
+}
+
+/* 3. Focus Blocks */
+.dashboard-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.focus-block {
+    background-color: #242424;
+    padding: 16px;
+    border-radius: 20px; 
+    flex: 1;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.focus-block:active {
+    transform: scale(0.96); /* Efek tombol ditekan */
+}
+
+.focus-block h3 {
+    font-size: 0.85rem;
+    color: #aaaaaa;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.focus-block .count {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+/* Daftar Cerita */
+.project-list h2 {
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+}
+
+.project-card {
+    text-align: left;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.project-card h3 {
+    font-size: 1.1rem;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.meta-data {
+    font-size: 0.85rem;
+    color: #888888;
+    margin-bottom: 12px;
+}
+
+/* Badges */
+.badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.badge-editing { background-color: #3d3a1e; color: #ffeb3b; }
+.badge-draft { background-color: #2a2a2a; color: #aaaaaa; }
+
+/* Tombol Aksi (Floating Action Button) */
+.fab-action {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background-color: #007aff; /* Warna biru standar */
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 8px 16px rgba(0, 122, 255, 0.3);
+    cursor: pointer;
+}
+
+/* =========================================
+   ARSITEKTUR ROUTING & EDITOR SCREEN
+========================================= */
+.hidden {
+    display: none !important;
+}
+
+#editor-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #000000;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background-color: #121212; /* Sesuai tone interaksi One UI */
+}
+
+.editor-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 50%;
+    text-align: center;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #007aff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 0;
+}
+
+.editor-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    background-color: #000000;
+}
+
+#chapter-title {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    outline: none;
+    font-family: inherit;
+}
+
+#chapter-title::placeholder {
+    color: #555555;
+}
+
+#chapter-content {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #cccccc;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+}
+
+#chapter-content::placeholder {
+    color: #555555;
+}
+
+/* =========================================
+   DETAIL CERITA SCREEN
+========================================= */
+#story-detail-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #000000;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background-color: #121212;
+}
+
+.detail-workspace {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.synopsis-box {
+    text-align: left !important;
+    margin-bottom: 24px;
+    background-color: #1a1a1a !important;
+}
+
+.synopsis-box p {
+    font-size: 0.95rem;
+    color: #cccccc;
+    line-height: 1.5;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.chapter-card {
+    background-color: #242424;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+}
+
+.chapter-card h4 {
+    font-size: 1rem;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.chapter-card span {
+    font-size: 0.8rem;
+    color: #888888;
+}
+
+/* =========================================
+   STORY BIBLE UI
+========================================= */
+.bible-card {
+    background-color: #1a1a1a;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    border-left: 4px solid #a855f7;
+    cursor: pointer;
+}
+
+.bible-card h4 {
+    font-size: 1.1rem;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+
+.bible-card p {
+    font-size: 0.9rem;
+    color: #aaaaaa;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Batasi teks hanya 2 baris */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.badge-bible {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    background-color: #2d1b4e;
+    color: #d8b4fe;
+}

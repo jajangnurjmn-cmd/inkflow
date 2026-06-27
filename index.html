@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Dashboard Penulis</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="viewing-area">
+        <h1>Dashboard</h1>
+        <p class="status-sync">Data tersimpan lokal ⚡</p>
+    </header>
+
+    <main class="interaction-area">
+        
+<section class="dashboard-stats">
+            <div class="focus-block">
+                <h3>Draft</h3>
+                <!-- Tambahkan ID count-draft -->
+                <p class="count" id="count-draft">0</p>
+            </div>
+            <div class="focus-block">
+                <h3>Editing</h3>
+                <!-- Tambahkan ID count-editing -->
+                <p class="count" id="count-editing">0</p>
+            </div>
+            <div class="focus-block">
+                <h3>Published</h3>
+                <!-- Tambahkan ID count-published -->
+                <p class="count" id="count-published">0</p>
+            </div>
+        </section>
+
+        <section class="project-list">
+            <h2>Proyek Aktif</h2>
+            <div class="focus-block project-card">
+                <h3>Rahasia Hutan Pinus</h3>
+                <p class="meta-data">Chapter 5 | Tag: Misteri</p>
+                <span class="badge badge-editing">Editing</span>
+            </div>
+             <div class="focus-block project-card">
+                <h3>Ekspedisi Nebula</h3>
+                <p class="meta-data">Story Bible Setup | Tag: Sci-Fi</p>
+                <span class="badge badge-draft">Draft</span>
+            </div>
+        </section>
+
+        <button class="fab-action">+ Tulis Cerita</button>
+        <footer style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+            <p style="color: #444; font-size: 0.75rem;">© 2026 | Design by Sahawn</p>
+        </footer>
+
+    </main>
+
+    <script src="app.js"></script>
+    <div id="story-detail-screen" class="hidden">
+        <header class="detail-header">
+            <button id="btn-back-dashboard" class="icon-btn">← Dashboard</button>
+            <h2 id="detail-story-title">Judul Cerita</h2>
+            <button id="btn-open-bible" class="icon-btn" style="color: #a855f7;">📖 Bible</button>
+        </header>
+        <main class="detail-workspace">
+            <section class="focus-block synopsis-box">
+                <h3>Sinopsis</h3>
+                <p id="detail-story-synopsis">Memuat sinopsis...</p>
+            </section>
+
+            <section class="chapter-list-section">
+                <div class="section-header">
+                    <h2>Daftar Chapter</h2>
+                    <div>
+                        <button id="btn-export-txt" class="badge badge-draft" style="border:none; cursor:pointer; margin-right: 8px; background-color: #333;">↓ Export TXT</button>
+                        <button id="btn-new-chapter" class="badge badge-editing" style="border:none; cursor:pointer;">+ Bab Baru</button>
+                    </div>
+                </div>
+                
+                <div id="chapters-container">
+                    </div>
+                
+            </section>
+        </main>
+    </div>
+    <div id="editor-screen" class="hidden">
+        <header class="editor-header">
+            <button id="btn-back" class="icon-btn">← Kembali</button>
+            <h2 id="editor-title">Judul Cerita</h2>
+            <button id="btn-save" class="icon-btn">Simpan</button>
+        </header>
+       <main class="editor-workspace">
+            <input type="text" id="chapter-title" placeholder="Judul Chapter (Opsional)" />
+            <textarea id="chapter-content" placeholder="Mulai merangkai kata..."></textarea>
+            
+            <div style="text-align: right; margin-top: 8px;">
+                <span id="word-count" style="color: #666; font-size: 0.85rem; font-weight: 500;">0 Kata</span>
+            </div>
+        </main>
+    </div>
+    <div id="bible-screen" class="hidden">
+        <header class="editor-header">
+            <button id="btn-back-detail-from-bible" class="icon-btn">← Cerita</button>
+            <h2>Story Bible</h2>
+            <button id="btn-new-bible" class="icon-btn" style="color: #a855f7;">+ Entri</button>
+        </header>
+        <main class="editor-workspace" style="overflow-y: auto;">
+            <p style="color:#888; font-size:0.9rem; margin-bottom: 16px;">Catatan karakter, lokasi, dan world-building.</p>
+            <div id="bible-container">
+                </div>
+        </main>
+    </div>
+
+    <div id="bible-editor-screen" class="hidden">
+        <header class="editor-header">
+            <button id="btn-cancel-bible" class="icon-btn" style="color: #ff3b30;">Batal</button>
+            <h2 id="bible-editor-title">Entri Baru</h2>
+            <button id="btn-save-bible" class="icon-btn" style="color: #4cd964;">Simpan</button>
+        </header>
+        <main class="editor-workspace">
+            <select id="bible-category" style="background:#1a1a1a; color:#fff; padding:12px; border-radius:12px; border:none; margin-bottom:16px; outline:none; font-family:inherit;">
+                <option value="Karakter">👤 Karakter</option>
+                <option value="Lokasi">📍 Lokasi</option>
+                <option value="World-Building">🌍 World-Building</option>
+                <option value="Lainnya">📌 Lainnya</option>
+            </select>
+            <input type="text" id="bible-entry-title" placeholder="Nama Karakter / Lokasi..." style="background:none; border:none; color:#fff; font-size:1.5rem; font-weight:700; margin-bottom:16px; outline:none; font-family:inherit;" />
+            <textarea id="bible-entry-content" placeholder="Tulis deskripsi, ciri fisik, atau detail penting di sini..." style="flex:1; background:none; border:none; color:#ccc; font-size:1.1rem; line-height:1.6; resize:none; outline:none; font-family:inherit;"></textarea>
+        </main>
+    </div>
+</body>
+</html>
