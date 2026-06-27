@@ -85,12 +85,91 @@ getAllRequest.onsuccess = function(event) {
         let hitungEditing = 0;
         let hitungPublished = 0;
 
+        // Render data asli dari IndexedDB
         semuaCerita.forEach(cerita => {
-            if (cerita.status.toLowerCase() === 'draft') hitungDraft++;
-            if (cerita.status.toLowerCase() === 'editing') hitungEditing++;
-            if (cerita.status.toLowerCase() === 'published') hitungPublished++;
-        });
+            const card = document.createElement('div');
+            card.className = 'focus-block project-card';
+            card.style.cursor = 'pointer';
+            
+            // Klik kartu untuk buka detail
+            card.onclick = () => bukaDetailCerita(cerita);
 
+            const statusClass = cerita.status.toLowerCase() === 'editing' ? 'badge-editing' : (cerita.status.toLowerCase() === 'published' ? 'badge-published' : 'badge-draft');
+
+            card.innerHTML = `
+                <h3>${cerita.judul}</h3>
+                <p class="meta-data">${cerita.sinopsis.substring(0, 30)}... | Tag: ${cerita.tag}</p>
+                <span class="badge ${statusClass}">${cerita.status}</span>
+            `;
+
+            // Membuat Kontainer Tombol Aksi (Edit & Hapus)
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'card-actions';
+
+            // Tombol Edit Metadata Cerita
+            const btnEdit = document.createElement('button');
+            btnEdit.className = 'btn-small btn-edit';
+            btnEdit.innerText = 'Edit Info';
+            btnEdit.onclick = (e) => {
+                e.stopPropagation(); // Mencegah kartu ikut terklik (masuk ke detail)
+                
+                const judulBaru = prompt("Edit Judul:", cerita.judul);
+                if (judulBaru === null) return; // Batal diedit
+                
+                const sinopsisBaru = prompt("Edit Sinopsis:", cerita.sinopsis);
+                const tagBaru = prompt("Edit Tag:", cerita.tag);
+
+                const tx = db.transaction(['stories'], 'readwrite');
+                cerita.judul = judulBaru || cerita.judul;
+                cerita.sinopsis = sinopsisBaru || cerita.sinopsis;
+                cerita.tag = tagBaru || cerita.tag;
+
+                tx.objectStore('stories').put(cerita).onsuccess = () => loadDashboardData();
+            };
+
+            // Tombol Hapus Cerita (Cascade Delete)
+            const btnDel = document.createElement('button');
+            btnDel.className = 'btn-small btn-delete';
+            btnDel.innerText = 'Hapus';
+            btnDel.onclick = (e) => {
+                e.stopPropagation(); // Mencegah kartu ikut terklik
+                
+                if(confirm(`PERINGATAN TATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen? Seluruh Chapter dan Story Bible di dalamnya akan ikut lenyap.`)) {
+                    
+                    const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
+                    
+                    // 1. Hapus Cerita Utama
+                    tx.objectStore('stories').delete(cerita.id);
+                    
+                    // 2. Hapus Semua Chapter yang Terikat
+                    tx.objectStore('chapters').openCursor().onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if(cursor) {
+                            if(cursor.value.storyId === cerita.id) cursor.delete();
+                            cursor.continue();
+                        }
+                    };
+                    
+                    // 3. Hapus Semua Story Bible yang Terikat
+                    tx.objectStore('story_bible').openCursor().onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if(cursor) {
+                            if(cursor.value.storyId === cerita.id) cursor.delete();
+                            cursor.continue();
+                        }
+                    };
+
+                    tx.oncomplete = () => loadDashboardData(); // Refresh UI
+                }
+            };
+
+            actionDiv.appendChild(btnEdit);
+            actionDiv.appendChild(btnDel);
+            card.appendChild(actionDiv);
+
+            projectList.appendChild(card);
+        });
+    
         // EKSEKUSI DOM: Memasukkan hasil hitungan ke dalam HTML
         const elDraft = document.getElementById('count-draft');
         const elEditing = document.getElementById('count-editing');
