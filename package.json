@@ -1,0 +1,8 @@
+{
+  "name": "inkflow",
+  "version": "1.0.0",
+  "description": "Distraction-free environment for writers",
+  "scripts": {
+    "build": "echo 'No build step needed'"
+  }
+}
