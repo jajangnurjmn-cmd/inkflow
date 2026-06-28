@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.jajangnurjmn_cmd.twa",
-        "sha256_cert_fingerprints": ["73:C5:B2:D5:CE:67:62:17:0F:BC:81:EC:1D:2D:D1:00:89:35:0A:AD:46:83:E4:14:CA:7F:FA:D9:A5:29:30:3E"]
-      }
-    }]
