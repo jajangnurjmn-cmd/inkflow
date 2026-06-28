@@ -62,10 +62,19 @@
             <button id="btn-open-bible" class="icon-btn" style="color: #a855f7;">📖 Bible</button>
         </header>
         <main class="detail-workspace">
-            <section class="focus-block synopsis-box">
-                <h3>Sinopsis</h3>
+                        <section class="focus-block synopsis-box">
+                <!-- Header Sinopsis & Dropdown Status sejajar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3>Sinopsis</h3>
+                    <select id="story-status-dropdown" style="background:#2a2a2a; color:#fff; border:1px solid #444; outline:none; padding:4px 12px; border-radius:12px; font-family:inherit; font-size: 0.85rem; cursor:pointer;">
+                        <option value="Draft">Draft</option>
+                        <option value="Editing">Editing</option>
+                        <option value="Published">Published</option>
+                    </select>
+                </div>
                 <p id="detail-story-synopsis">Memuat sinopsis...</p>
             </section>
+
 
             <section class="chapter-list-section">
                 <div class="section-header">
