@@ -7,12 +7,11 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     
-    <!-- Firebase SDK via CDN (script tag, lebih stabil) -->
+    <!-- Firebase SDK via CDN -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     
-    <!-- Firebase Config -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyC5HyTM97NXq1poVuAJAi5H0wzVDnKtNco",
@@ -23,7 +22,6 @@
             appId: "1:212341399710:web:2b58e5d56f29d3721b5b8f"
         };
         firebase.initializeApp(firebaseConfig);
-        
         window.db = firebase.firestore();
         window.auth = firebase.auth();
         window.provider = new firebase.auth.GoogleAuthProvider();
@@ -66,7 +64,6 @@
 
         <section class="project-list">
             <h2>Proyek Aktif</h2>
-            <!-- HAPUS DATA HARDCODE INI - biar dari JS -->
         </section>
 
         <button class="fab-action">+ Tulis Cerita</button>
@@ -109,52 +106,21 @@
         </main>
     </div>
 
-   <!-- Editor Screen -->
-<div id="editor-screen" class="hidden">
-    <header class="editor-header">
-        <button id="btn-back" class="icon-btn">← Kembali</button>
-        <h2 id="editor-title">Judul Cerita</h2>
-        <button id="btn-save" class="icon-btn">Simpan</button>
-    </header>
-    
-    <!-- Toolbar Responsive -->
-    <div class="editor-toolbar">
-        <div class="toolbar-group">
-            <button onclick="formatDoc('bold')" class="toolbar-btn" title="Bold">
-                <b>B</b>
-            </button>
-            <button onclick="formatDoc('italic')" class="toolbar-btn" title="Italic">
-                <i>I</i>
-            </button>
-            <button onclick="formatDoc('underline')" class="toolbar-btn" title="Underline">
-                <u>U</u>
-            </button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <div class="toolbar-group">
-            <button onclick="formatDoc('justifyLeft')" class="toolbar-btn" title="Left">⬅</button>
-            <button onclick="formatDoc('justifyCenter')" class="toolbar-btn" title="Center">↔</button>
-            <button onclick="formatDoc('justifyRight')" class="toolbar-btn" title="Right">➡</button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <button onclick="formatDoc('removeFormat')" class="toolbar-btn clear-btn" title="Clear">✕</button>
+    <!-- Editor Screen (TEXTAREA BIASA) -->
+    <div id="editor-screen" class="hidden">
+        <header class="editor-header">
+            <button id="btn-back" class="icon-btn">← Kembali</button>
+            <h2 id="editor-title">Judul Cerita</h2>
+            <button id="btn-save" class="icon-btn">Simpan</button>
+        </header>
+        <main class="editor-workspace">
+            <input type="text" id="chapter-title" placeholder="Judul Chapter (Opsional)" />
+            <textarea id="chapter-content" placeholder="Mulai merangkai kata..."></textarea>
+            <div style="text-align: right; margin-top: 8px;">
+                <span id="word-count" style="color: #666; font-size: 0.85rem; font-weight: 500;">0 Kata</span>
+            </div>
+        </main>
     </div>
-    
-    <main class="editor-workspace">
-        <input type="text" id="chapter-title" placeholder="Judul Chapter (Opsional)" />
-        
-        <div id="chapter-content" 
-             contenteditable="true" 
-             class="rich-editor"
-             placeholder="Mulai merangkai kata...">
-        </div>
-        
-        <div class="editor-footer">
-            <span id="word-count">0 Kata</span>
-            <span class="editor-hint">Ctrl+B Bold | Ctrl+I Italic</span>
-        </div>
-    </main>
-</div>
 
     <!-- Bible Screen -->
     <div id="bible-screen" class="hidden">
