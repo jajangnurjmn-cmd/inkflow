@@ -10,20 +10,28 @@ function formatDoc(command, value = null) {
 }
 
 // Handle Enter key untuk auto paragraph spacing
+// ==========================================================================
+// RICH TEXT EDITOR FUNCTIONS
+// ==========================================================================
+
+function formatDoc(command, value = null) {
+    document.execCommand(command, false, value);
+    document.getElementById('chapter-content').focus();
+    hitungKata();
+}
+
 function setupRichEditor() {
     const editor = document.getElementById('chapter-content');
     if (!editor) return;
     
-    // Handle paste - preserve formatting tapi bersihin font family/size
+    // Handle paste - preserve formatting
     editor.addEventListener('paste', (e) => {
         e.preventDefault();
         
-        // Ambil HTML dari clipboard
         const html = e.clipboardData.getData('text/html');
         const text = e.clipboardData.getData('text/plain');
         
         if (html) {
-            // Bersihin HTML yang di-paste (hapus font-family, font-size, tapi keep bold/italic)
             let cleanHtml = html
                 .replace(/font-family:[^;]+;/gi, '')
                 .replace(/font-size:[^;]+;/gi, '')
@@ -31,66 +39,77 @@ function setupRichEditor() {
                 .replace(/class="[^"]*"/gi, '')
                 .replace(/id="[^"]*"/gi, '');
             
-            // Insert HTML yang udah dibersihin
             document.execCommand('insertHTML', false, cleanHtml);
         } else {
-            // Kalau gak ada HTML, paste sebagai text biasa tapi jadi paragraph
-            const paragraphs = text.split(/\n\s*\n/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+            const paragraphs = text.split(/\n\s*\n/).map(p => {
+                const lines = p.split('\n').join('<br>');
+                return `<p>${lines}</p>`;
+            }).join('');
             document.execCommand('insertHTML', false, paragraphs);
         }
         
-        hitungKata();
+        setTimeout(hitungKata, 0);
     });
     
-    // Handle Enter key - buat <p> baru, bukan <br> atau <div>
+    // Handle input (lebih reliable dari keyup di mobile)
+    editor.addEventListener('input', () => {
+        hitungKata();
+        clearTimeout(waktuKetik);
+        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
+    });
+    
+    // Handle Enter untuk auto paragraph
     editor.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            // Biarin browser handle, tapi nanti cleanup
-            setTimeout(() => cleanupParagraphs(), 0);
+            setTimeout(() => {
+                cleanupParagraphs(editor);
+            }, 0);
         }
     });
     
-    // Cleanup paragraphs biar konsisten
-    function cleanupParagraphs() {
-        const paragraphs = editor.querySelectorAll('p, div, br');
-        
-        // Ganti <div> jadi <p>
-        paragraphs.forEach(el => {
-            if (el.tagName === 'DIV' && !el.classList.length) {
-                const p = document.createElement('p');
-                p.innerHTML = el.innerHTML;
-                el.parentNode.replaceChild(p, el);
-            }
-        });
-        
-        // Ganti <br><br> jadi </p><p>
-        const html = editor.innerHTML;
-        const cleaned = html
-            .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '</p><p>')
-            .replace(/<div[^>]*>/gi, '<p>')
-            .replace(/<\/div>/gi, '</p>');
-        
-        if (cleaned !== html) {
-            editor.innerHTML = cleaned;
+    // Touch events untuk mobile
+    editor.addEventListener('touchend', () => {
+        setTimeout(hitungKata, 100);
+    });
+}
+
+function cleanupParagraphs(editor) {
+    // Ganti div jadi p
+    const divs = editor.querySelectorAll('div');
+    divs.forEach(div => {
+        if (!div.classList.length && div.id !== 'chapter-content') {
+            const p = document.createElement('p');
+            p.innerHTML = div.innerHTML;
+            div.parentNode.replaceChild(p, div);
         }
+    });
+    
+    // Pastikan selalu ada <p> wrapper
+    if (editor.innerHTML === '<br>' || editor.innerHTML === '') {
+        editor.innerHTML = '<p><br></p>';
     }
 }
 
-// Hitung kata dari contenteditable
 function hitungKata() {
     const editor = document.getElementById('chapter-content');
     if (!editor) return;
     
-    const text = editor.innerText || '';
-    const arrayKata = text.trim().split(/\s+/);
+    // Ambil textContent (lebih reliable di mobile)
+    const text = editor.textContent || editor.innerText || '';
+    const arrayKata = text.trim().split(/\s+/).filter(w => w.length > 0);
     const jumlahKata = text.trim() === '' ? 0 : arrayKata.length;
     
     const el = document.getElementById('word-count');
-    if (el) el.innerText = `${jumlahKata} Kata`;
+    if (el) {
+        el.innerText = `${jumlahKata} Kata`;
+        // Animasi kecil biar keliatan aktif
+        el.style.opacity = '0.5';
+        setTimeout(() => el.style.opacity = '1', 150);
+    }
 }
 
 // ==========================================================================
-// UPDATED FUNCTIONS (Ganti yang lama)
+// UPDATED FUNCTIONS
 // ==========================================================================
 
 function bukaEditor(storyId, dataChapter = null) {
@@ -105,15 +124,22 @@ function bukaEditor(storyId, dataChapter = null) {
     if (dataChapter) {
         editorScreen.dataset.activeChapterId = dataChapter.id;
         document.getElementById('editor-title').innerText = "Edit Chapter";
-        document.getElementById('chapter-title').value = dataChapter.judulChapter;
-        // Isi contenteditable dengan HTML
-        document.getElementById('chapter-content').innerHTML = dataChapter.isi || '<p><br></p>';
+        document.getElementById('chapter-title').value = dataChapter.judulChapter || '';
+        // Parse HTML atau plain text
+        const content = dataChapter.isi || '';
+        document.getElementById('chapter-content').innerHTML = content.includes('<') ? content : `<p>${content.replace(/\n/g, '<br>')}</p>`;
     } else {
         delete editorScreen.dataset.activeChapterId;
         document.getElementById('editor-title').innerText = "Chapter Baru";
         document.getElementById('chapter-title').value = '';
         document.getElementById('chapter-content').innerHTML = '<p><br></p>';
     }
+    
+    // Focus ke editor setelah animasi
+    setTimeout(() => {
+        document.getElementById('chapter-content').focus();
+    }, 300);
+    
     hitungKata();
 }
 
@@ -123,10 +149,9 @@ function simpanDraftChapter(callback = null) {
     let chapterId = editorScreen.dataset.activeChapterId; 
     
     const judulChapter = document.getElementById('chapter-title').value;
-    // Ambil HTML dari contenteditable, bukan text
     const isiKonten = document.getElementById('chapter-content').innerHTML;
 
-    if (!judulChapter.trim() && isiKonten === '<p><br></p>') {
+    if (!judulChapter.trim() && (isiKonten === '<p><br></p>' || isiKonten === '')) {
         if (typeof callback === 'function') callback();
         return;
     }
@@ -136,7 +161,7 @@ function simpanDraftChapter(callback = null) {
         id: id,
         storyId: storyId,
         judulChapter: judulChapter || 'Chapter Tanpa Judul',
-        isi: isiKonten, // Simpan sebagai HTML
+        isi: isiKonten,
         terakhirDiubah: new Date().toISOString()
     };
 
@@ -151,6 +176,17 @@ function simpanDraftChapter(callback = null) {
         
         if (typeof callback === 'function') callback();
     };
+}
+
+function indikatorTersimpan() {
+    const btnSave = document.getElementById('btn-save');
+    if (!btnSave) return;
+    btnSave.innerText = 'Tersimpan ✓';
+    btnSave.style.color = '#4cd964';
+    setTimeout(() => {
+        btnSave.innerText = 'Simpan';
+        btnSave.style.color = '#007aff';
+    }, 3000);
 }
 
 // Export TXT - convert HTML ke plain text tapi pertahankan struktur
