@@ -1,4 +1,210 @@
 // ==========================================================================
+// RICH TEXT EDITOR FUNCTIONS
+// ==========================================================================
+
+// Format command (Bold, Italic, dll)
+function formatDoc(command, value = null) {
+    document.execCommand(command, false, value);
+    document.getElementById('chapter-content').focus();
+    hitungKata();
+}
+
+// Handle Enter key untuk auto paragraph spacing
+function setupRichEditor() {
+    const editor = document.getElementById('chapter-content');
+    if (!editor) return;
+    
+    // Handle paste - preserve formatting tapi bersihin font family/size
+    editor.addEventListener('paste', (e) => {
+        e.preventDefault();
+        
+        // Ambil HTML dari clipboard
+        const html = e.clipboardData.getData('text/html');
+        const text = e.clipboardData.getData('text/plain');
+        
+        if (html) {
+            // Bersihin HTML yang di-paste (hapus font-family, font-size, tapi keep bold/italic)
+            let cleanHtml = html
+                .replace(/font-family:[^;]+;/gi, '')
+                .replace(/font-size:[^;]+;/gi, '')
+                .replace(/style=""/gi, '')
+                .replace(/class="[^"]*"/gi, '')
+                .replace(/id="[^"]*"/gi, '');
+            
+            // Insert HTML yang udah dibersihin
+            document.execCommand('insertHTML', false, cleanHtml);
+        } else {
+            // Kalau gak ada HTML, paste sebagai text biasa tapi jadi paragraph
+            const paragraphs = text.split(/\n\s*\n/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+            document.execCommand('insertHTML', false, paragraphs);
+        }
+        
+        hitungKata();
+    });
+    
+    // Handle Enter key - buat <p> baru, bukan <br> atau <div>
+    editor.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Biarin browser handle, tapi nanti cleanup
+            setTimeout(() => cleanupParagraphs(), 0);
+        }
+    });
+    
+    // Cleanup paragraphs biar konsisten
+    function cleanupParagraphs() {
+        const paragraphs = editor.querySelectorAll('p, div, br');
+        
+        // Ganti <div> jadi <p>
+        paragraphs.forEach(el => {
+            if (el.tagName === 'DIV' && !el.classList.length) {
+                const p = document.createElement('p');
+                p.innerHTML = el.innerHTML;
+                el.parentNode.replaceChild(p, el);
+            }
+        });
+        
+        // Ganti <br><br> jadi </p><p>
+        const html = editor.innerHTML;
+        const cleaned = html
+            .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '</p><p>')
+            .replace(/<div[^>]*>/gi, '<p>')
+            .replace(/<\/div>/gi, '</p>');
+        
+        if (cleaned !== html) {
+            editor.innerHTML = cleaned;
+        }
+    }
+}
+
+// Hitung kata dari contenteditable
+function hitungKata() {
+    const editor = document.getElementById('chapter-content');
+    if (!editor) return;
+    
+    const text = editor.innerText || '';
+    const arrayKata = text.trim().split(/\s+/);
+    const jumlahKata = text.trim() === '' ? 0 : arrayKata.length;
+    
+    const el = document.getElementById('word-count');
+    if (el) el.innerText = `${jumlahKata} Kata`;
+}
+
+// ==========================================================================
+// UPDATED FUNCTIONS (Ganti yang lama)
+// ==========================================================================
+
+function bukaEditor(storyId, dataChapter = null) {
+    document.getElementById('story-detail-screen').classList.add('hidden');
+    const editorScreen = document.getElementById('editor-screen');
+    editorScreen.classList.remove('hidden');
+    editorScreen.dataset.activeStoryId = storyId;
+    
+    // Setup rich editor
+    setupRichEditor();
+    
+    if (dataChapter) {
+        editorScreen.dataset.activeChapterId = dataChapter.id;
+        document.getElementById('editor-title').innerText = "Edit Chapter";
+        document.getElementById('chapter-title').value = dataChapter.judulChapter;
+        // Isi contenteditable dengan HTML
+        document.getElementById('chapter-content').innerHTML = dataChapter.isi || '<p><br></p>';
+    } else {
+        delete editorScreen.dataset.activeChapterId;
+        document.getElementById('editor-title').innerText = "Chapter Baru";
+        document.getElementById('chapter-title').value = '';
+        document.getElementById('chapter-content').innerHTML = '<p><br></p>';
+    }
+    hitungKata();
+}
+
+function simpanDraftChapter(callback = null) {
+    const editorScreen = document.getElementById('editor-screen');
+    const storyId = editorScreen.dataset.activeStoryId;
+    let chapterId = editorScreen.dataset.activeChapterId; 
+    
+    const judulChapter = document.getElementById('chapter-title').value;
+    // Ambil HTML dari contenteditable, bukan text
+    const isiKonten = document.getElementById('chapter-content').innerHTML;
+
+    if (!judulChapter.trim() && isiKonten === '<p><br></p>') {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+
+    const id = chapterId || ('chapter_' + Date.now());
+    const dataChapter = {
+        id: id,
+        storyId: storyId,
+        judulChapter: judulChapter || 'Chapter Tanpa Judul',
+        isi: isiKonten, // Simpan sebagai HTML
+        terakhirDiubah: new Date().toISOString()
+    };
+
+    const tx = localDb.transaction(['chapters'], 'readwrite');
+    tx.objectStore('chapters').put(dataChapter).onsuccess = () => {
+        if (!chapterId) editorScreen.dataset.activeChapterId = id;
+        indikatorTersimpan();
+        
+        if (currentUser && isOnline) {
+            saveToFirestore('chapters', dataChapter, id);
+        }
+        
+        if (typeof callback === 'function') callback();
+    };
+}
+
+// Export TXT - convert HTML ke plain text tapi pertahankan struktur
+function exportCeritaKeTXT() {
+    const detailScreen = document.getElementById('story-detail-screen');
+    const storyId = detailScreen.dataset.activeStoryId;
+    const judulCerita = document.getElementById('detail-story-title').innerText;
+
+    const transaction = localDb.transaction(['chapters'], 'readonly');
+    const store = transaction.objectStore('chapters');
+    
+    store.getAll().onsuccess = function(event) {
+        const semuaChapter = event.target.result;
+        const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
+
+        if (chapterCeritaIni.length === 0) {
+            alert("Belum ada teks untuk diekspor!"); return;
+        }
+
+        let kontenExport = `=========================================\n`;
+        kontenExport += `JUDUL: ${judulCerita.toUpperCase()}\n`;
+        kontenExport += `Di-export pada: ${new Date().toLocaleString('id-ID')}\n`;
+        kontenExport += `=========================================\n\n`;
+
+        chapterCeritaIni.forEach((ch) => {
+            kontenExport += `\n--- ${ch.judulChapter.toUpperCase()} ---\n\n`;
+            // Convert HTML ke plain text dengan formatting markers
+            let plainText = ch.isi
+                .replace(/<p>/gi, '')
+                .replace(/<\/p>/gi, '\n\n')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<b>|<strong>/gi, '**')
+                .replace(/<\/b>|<\/strong>/gi, '**')
+                .replace(/<i>|<em>/gi, '*')
+                .replace(/<\/i>|<\/em>/gi, '*')
+                .replace(/<u>/gi, '_')
+                .replace(/<\/u>/gi, '_')
+                .replace(/<[^>]+>/g, ''); // Hapus tag lain
+            
+            kontenExport += plainText + '\n\n';
+        });
+
+        const blob = new Blob([kontenExport], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const elemenDownload = document.createElement('a');
+        elemenDownload.href = url;
+        elemenDownload.download = `${judulCerita.replace(/\s+/g, '_')}_Backup.txt`; 
+        document.body.appendChild(elemenDownload);
+        elemenDownload.click();
+        document.body.removeChild(elemenDownload);
+        URL.revokeObjectURL(url);
+    };
+}
+// ==========================================================================
 // FIREBASE (Dari global window object)
 // ==========================================================================
 const db = window.db;
