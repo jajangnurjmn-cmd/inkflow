@@ -441,3 +441,71 @@ body {
 .btn-small:active { opacity: 0.7; }
 .btn-edit { background-color: #2c3e50; color: #3498db; }
 .btn-delete { background-color: #3b1c1c; color: #e74c3c; }
+
+/* Rich Editor Styles */
+.rich-editor {
+    outline: none;
+}
+
+.rich-editor:empty:before {
+    content: attr(placeholder);
+    color: #666;
+    pointer-events: none;
+}
+
+.rich-editor p {
+    margin-bottom: 1em;
+    line-height: 1.8;
+}
+
+.rich-editor p:last-child {
+    margin-bottom: 0;
+}
+
+.rich-editor b, .rich-editor strong {
+    font-weight: 700;
+}
+
+.rich-editor i, .rich-editor em {
+    font-style: italic;
+}
+
+.rich-editor u {
+    text-decoration: underline;
+}
+
+.rich-editor s, .rich-editor strike {
+    text-decoration: line-through;
+}
+
+.rich-editor ul, .rich-editor ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.rich-editor li {
+    margin-bottom: 0.5em;
+}
+
+/* Toolbar Buttons */
+.toolbar-btn {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 36px;
+    transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+    background: #3a3a3a;
+    border-color: #666;
+}
+
+.toolbar-btn:active {
+    background: #007aff;
+    border-color: #007aff;
+}
