@@ -109,7 +109,7 @@
         </main>
     </div>
 
-    <!-- Editor Screen -->
+   <!-- Editor Screen -->
 <div id="editor-screen" class="hidden">
     <header class="editor-header">
         <button id="btn-back" class="icon-btn">← Kembali</button>
@@ -117,57 +117,41 @@
         <button id="btn-save" class="icon-btn">Simpan</button>
     </header>
     
-    <!-- Toolbar Rich Text -->
-    <div class="editor-toolbar" style="display: flex; gap: 8px; padding: 12px 16px; background: #1a1a1a; border-bottom: 1px solid #333; overflow-x: auto;">
-        <button onclick="formatDoc('bold')" class="toolbar-btn" title="Bold (Ctrl+B)">
-            <b>B</b>
-        </button>
-        <button onclick="formatDoc('italic')" class="toolbar-btn" title="Italic (Ctrl+I)">
-            <i>I</i>
-        </button>
-        <button onclick="formatDoc('underline')" class="toolbar-btn" title="Underline (Ctrl+U)">
-            <u>U</u>
-        </button>
-        <button onclick="formatDoc('strikeThrough')" class="toolbar-btn" title="Strikethrough">
-            <s>S</s>
-        </button>
-        <div style="width: 1px; background: #444; margin: 0 4px;"></div>
-        <button onclick="formatDoc('justifyLeft')" class="toolbar-btn" title="Align Left">
-            ⬅
-        </button>
-        <button onclick="formatDoc('justifyCenter')" class="toolbar-btn" title="Align Center">
-            ↔
-        </button>
-        <button onclick="formatDoc('justifyRight')" class="toolbar-btn" title="Align Right">
-            ➡
-        </button>
-        <div style="width: 1px; background: #444; margin: 0 4px;"></div>
-        <button onclick="formatDoc('insertUnorderedList')" class="toolbar-btn" title="Bullet List">
-            • List
-        </button>
-        <button onclick="formatDoc('insertOrderedList')" class="toolbar-btn" title="Numbered List">
-            1. List
-        </button>
-        <div style="width: 1px; background: #444; margin: 0 4px;"></div>
-        <button onclick="formatDoc('removeFormat')" class="toolbar-btn" title="Clear Formatting" style="color: #ff3b30;">
-            ✕ Clear
-        </button>
+    <!-- Toolbar Responsive -->
+    <div class="editor-toolbar">
+        <div class="toolbar-group">
+            <button onclick="formatDoc('bold')" class="toolbar-btn" title="Bold">
+                <b>B</b>
+            </button>
+            <button onclick="formatDoc('italic')" class="toolbar-btn" title="Italic">
+                <i>I</i>
+            </button>
+            <button onclick="formatDoc('underline')" class="toolbar-btn" title="Underline">
+                <u>U</u>
+            </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+            <button onclick="formatDoc('justifyLeft')" class="toolbar-btn" title="Left">⬅</button>
+            <button onclick="formatDoc('justifyCenter')" class="toolbar-btn" title="Center">↔</button>
+            <button onclick="formatDoc('justifyRight')" class="toolbar-btn" title="Right">➡</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <button onclick="formatDoc('removeFormat')" class="toolbar-btn clear-btn" title="Clear">✕</button>
     </div>
     
     <main class="editor-workspace">
         <input type="text" id="chapter-title" placeholder="Judul Chapter (Opsional)" />
         
-        <!-- Ganti textarea jadi contenteditable div -->
         <div id="chapter-content" 
              contenteditable="true" 
              class="rich-editor"
-             placeholder="Mulai merangkai kata..."
-             style="min-height: 300px; padding: 16px; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 12px; font-family: inherit; font-size: 1rem; line-height: 1.8; overflow-y: auto;">
+             placeholder="Mulai merangkai kata...">
         </div>
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <span id="word-count" style="color: #666; font-size: 0.85rem; font-weight: 500;">0 Kata</span>
-            <span style="color: #666; font-size: 0.75rem;">Ctrl+B Bold | Ctrl+I Italic</span>
+        <div class="editor-footer">
+            <span id="word-count">0 Kata</span>
+            <span class="editor-hint">Ctrl+B Bold | Ctrl+I Italic</span>
         </div>
     </main>
 </div>
