@@ -6,27 +6,39 @@
     <title>Dashboard Penulis</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
-     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-        import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-         const firebaseConfig = {
-  apiKey: "AIzaSyC5HyTM97NXq1poVuAJAi5H0wzVDnKtNco",
-  authDomain: "dasboard-penulis.firebaseapp.com",
-  projectId: "dasboard-penulis",
-  storageBucket: "dasboard-penulis.firebasestorage.app",
-  messagingSenderId: "212341399710",
-  appId: "1:212341399710:web:2b58e5d56f29d3721b5b8f"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-         if (err.code === 'failed-precondition') {
-                console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-            } else if (err.code === 'unimplemented') {
-                console.log('Browser tidak support persistence');
-            }
-        });
+    
+    <!-- Firebase SDK via CDN (script tag, lebih stabil) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    
+    <!-- Firebase Config -->
+    <script>
+        // GANTI INI DENGAN CONFIG PUNYA KAMU!
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5HyTM97NXq1poVuAJAi5H0wzVDnKtNco",
+            authDomain: "dasboard-penulis.firebaseapp.com",
+            projectId: "dasboard-penulis",
+            storageBucket: "dasboard-penulis.firebasestorage.app",
+            messagingSenderId: "212341399710",
+            appId: "1:212341399710:web:2b58e5d56f29d3721b5b8f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        
+        // Global variables
+        window.db = firebase.firestore();
+        window.auth = firebase.auth();
+        window.provider = new firebase.auth.GoogleAuthProvider();
+        
+        // Enable offline persistence
+        window.db.enablePersistence({ synchronizeTabs: true })
+            .catch(err => {
+                if (err.code === 'failed-precondition') {
+                    console.log('Multiple tabs open');
+                } else if (err.code === 'unimplemented') {
+                    console.log('Browser tidak support persistence');
+                }
+            });
     </script>
 </head>
 <body>
