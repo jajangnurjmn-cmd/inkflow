@@ -1,230 +1,288 @@
 // ==========================================================================
-// 0. KONFIGURASI & UTILITAS
+// FIREBASE IMPORTS (Dari window object yang di-set di HTML)
+// ==========================================================================
+const { 
+    collection, doc, setDoc, getDoc, getDocs, deleteDoc, 
+    onSnapshot, query, where, enableIndexedDbPersistence 
+} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+const { 
+    signInWithPopup, onAuthStateChanged, signOut 
+} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+
+const db = window.db;
+const auth = window.auth;
+const provider = window.provider;
+
+// ==========================================================================
+// STATE MANAGEMENT
+// ==========================================================================
+let currentUser = null;
+let isOnline = navigator.onLine;
+let localDb = null;
+let syncListeners = []; // Untuk cleanup listeners
+
+// ==========================================================================
+// INDEXEDDB FALLBACK (Untuk offline & data lokal)
 // ==========================================================================
 const DB_NAME = 'WriterPWADB';
-const DB_VERSION = 2; // Naikkan versi untuk upgrade schema
-let db;
+const DB_VERSION = 1;
 
-// Utility: Download file
-function downloadFile(content, filename, type = 'application/json') {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// Utility: Baca file
-function readFile(file) {
+function initLocalDb() {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(e);
-        reader.readAsText(file);
-    });
-}
-
-// ==========================================================================
-// 1. PERSIST STORAGE (Anti-Hapus Otomatis)
-// ==========================================================================
-async function mintaPersistStorage() {
-    if (!navigator.storage || !navigator.storage.persist) return;
-
-    const isPersisted = await navigator.storage.persisted();
-    if (!isPersisted) {
-        const granted = await navigator.storage.persist();
-        console.log(granted ? "✅ Storage persistence DITERIMA!" : "❌ Storage persistence DITOLAK.");
-    } else {
-        console.log("✅ Storage sudah persistent.");
-    }
-}
-
-// ==========================================================================
-// 2. INISIALISASI DATABASE (IndexedDB v2)
-// ==========================================================================
-const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-request.onupgradeneeded = function(event) {
-    const dbInstance = event.target.result;
-
-    if (!dbInstance.objectStoreNames.contains('stories')) {
-        dbInstance.createObjectStore('stories', { keyPath: 'id', autoIncrement: true });
-    }
-    if (!dbInstance.objectStoreNames.contains('chapters')) {
-        dbInstance.createObjectStore('chapters', { keyPath: 'id', autoIncrement: true });
-    }
-    if (!dbInstance.objectStoreNames.contains('story_bible')) {
-        dbInstance.createObjectStore('story_bible', { keyPath: 'id', autoIncrement: true });
-    }
-    console.log("Database IndexedDB berhasil disiapkan.");
-};
-
-request.onsuccess = function(event) {
-    db = event.target.result;
-    console.log("Database berhasil dibuka.");
-    mintaPersistStorage(); // Minta persist saat DB siap
-    loadDashboardData();
-};
-
-request.onerror = function(event) {
-    console.error("Gagal membuka database lokal:", event.target.error);
-};
-
-// ==========================================================================
-// 3. BACKUP & RESTORE (Manual - Tidak Auto)
-// ==========================================================================
-
-// Export SEMUA data ke JSON
-function exportSemuaData() {
-    if (!db) { alert("Database belum siap!"); return; }
-
-    const transaction = db.transaction(['stories', 'chapters', 'story_bible'], 'readonly');
-
-    const storiesStore = transaction.objectStore('stories');
-    const chaptersStore = transaction.objectStore('chapters');
-    const bibleStore = transaction.objectStore('story_bible');
-
-    Promise.all([
-        new Promise(r => storiesStore.getAll().onsuccess = e => r(e.target.result)),
-        new Promise(r => chaptersStore.getAll().onsuccess = e => r(e.target.result)),
-        new Promise(r => bibleStore.getAll().onsuccess = e => r(e.target.result))
-    ]).then(([stories, chapters, bibles]) => {
-        const backupData = {
-            app: "Dashboard Penulis",
-            version: "1.0",
-            exportedAt: new Date().toISOString(),
-            data: { stories, chapters, bibles }
-        };
-
-        const jsonStr = JSON.stringify(backupData, null, 2);
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        downloadFile(jsonStr, `Writer_Backup_${timestamp}.json`);
-
-        // Update UI
-        const statusEl = document.querySelector('.status-sync');
-        if (statusEl) {
-            statusEl.innerText = '✅ Backup berhasil!';
-            statusEl.style.color = '#4cd964';
-            setTimeout(() => {
-                statusEl.innerText = 'Data tersimpan lokal ⚡';
-                statusEl.style.color = '';
-            }, 3000);
-        }
-    });
-}
-
-// Import data dari JSON
-function importData(file) {
-    if (!db) { alert("Database belum siap!"); return; }
-
-    readFile(file).then(content => {
-        try {
-            const backup = JSON.parse(content);
-            if (!backup.data) throw new Error("Format file tidak valid!");
-
-            if (!confirm("⚠️ PERHATIAN!\nData yang diimport akan MENIMPA data yang ada sekarang.\nYakin ingin melanjutkan?")) {
-                return;
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('stories')) {
+                db.createObjectStore('stories', { keyPath: 'id' });
             }
-
-            const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
-
-            // Clear semua data lama
-            tx.objectStore('stories').clear();
-            tx.objectStore('chapters').clear();
-            tx.objectStore('story_bible').clear();
-
-            tx.oncomplete = () => {
-                const tx2 = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
-
-                // Restore stories
-                const storiesStore = tx2.objectStore('stories');
-                backup.data.stories.forEach(s => {
-                    delete s.id; // Hapus ID lama, biar auto-increment baru
-                    storiesStore.add(s);
-                });
-
-                // Restore chapters
-                const chaptersStore = tx2.objectStore('chapters');
-                backup.data.chapters.forEach(c => {
-                    delete c.id;
-                    chaptersStore.add(c);
-                });
-
-                // Restore bibles
-                const bibleStore = tx2.objectStore('story_bible');
-                backup.data.bibles.forEach(b => {
-                    delete b.id;
-                    bibleStore.add(b);
-                });
-
-                tx2.oncomplete = () => {
-                    alert("✅ Data berhasil direstore!");
-                    loadDashboardData();
-                    location.reload(); // Refresh biar data baru ke-load
-                };
-            };
-
-        } catch (err) {
-            alert("❌ Gagal import: " + err.message);
-        }
+            if (!db.objectStoreNames.contains('chapters')) {
+                db.createObjectStore('chapters', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('story_bible')) {
+                db.createObjectStore('story_bible', { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
     });
 }
 
 // ==========================================================================
-// 4. LOGIKA OPERASI DATA & DASHBOARD
+// AUTHENTICATION
+// ==========================================================================
+async function login() {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (err) {
+        console.error("Login gagal:", err);
+        alert("Login gagal: " + err.message);
+    }
+}
+
+async function logout() {
+    try {
+        await signOut(auth);
+        // Clear local data
+        const tx = localDb.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
+        tx.objectStore('stories').clear();
+        tx.objectStore('chapters').clear();
+        tx.objectStore('story_bible').clear();
+        tx.oncomplete = () => {
+            location.reload();
+        };
+    } catch (err) {
+        console.error("Logout gagal:", err);
+    }
+}
+
+function updateAuthUI(user) {
+    const btnLogin = document.getElementById('btn-login');
+    const btnLogout = document.getElementById('btn-logout');
+    const userName = document.getElementById('user-name');
+    const statusEl = document.querySelector('.status-sync');
+    
+    if (user) {
+        currentUser = user;
+        if (btnLogin) btnLogin.classList.add('hidden');
+        if (btnLogout) btnLogout.classList.remove('hidden');
+        if (userName) userName.innerText = user.displayName || user.email;
+        if (statusEl) statusEl.innerText = '🔄 Syncing...';
+        
+        setupRealtimeSync();
+    } else {
+        currentUser = null;
+        if (btnLogin) btnLogin.classList.remove('hidden');
+        if (btnLogout) btnLogout.classList.add('hidden');
+        if (userName) userName.innerText = '';
+        if (statusEl) statusEl.innerText = '⚡ Mode Lokal (Login untuk sync)';
+        
+        // Cleanup listeners
+        syncListeners.forEach(unsub => unsub());
+        syncListeners = [];
+    }
+}
+
+// ==========================================================================
+// SYNC ENGINE (Firestore + IndexedDB Hybrid)
+// ==========================================================================
+function getUserRef() {
+    if (!currentUser) return null;
+    return doc(db, 'users', currentUser.uid);
+}
+
+function setupRealtimeSync() {
+    if (!currentUser) return;
+    
+    const userId = currentUser.uid;
+    
+    // Listen Stories
+    const storiesUnsub = onSnapshot(
+        collection(db, 'users', userId, 'stories'),
+        (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                const data = { ...change.doc.data(), id: change.doc.id };
+                const tx = localDb.transaction(['stories'], 'readwrite');
+                const store = tx.objectStore('stories');
+                
+                if (change.type === 'removed') {
+                    store.delete(change.doc.id);
+                } else {
+                    store.put(data);
+                }
+            });
+            loadDashboardData();
+            updateSyncStatus('✅ Synced');
+        },
+        (err) => {
+            console.error("Sync error:", err);
+            updateSyncStatus('⚠️ Sync error');
+        }
+    );
+    syncListeners.push(storiesUnsub);
+    
+    // Listen Chapters
+    const chaptersUnsub = onSnapshot(
+        collection(db, 'users', userId, 'chapters'),
+        (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                const data = { ...change.doc.data(), id: change.doc.id };
+                const tx = localDb.transaction(['chapters'], 'readwrite');
+                const store = tx.objectStore('chapters');
+                
+                if (change.type === 'removed') {
+                    store.delete(change.doc.id);
+                } else {
+                    store.put(data);
+                }
+            });
+            // Refresh chapter list kalau lagi di detail
+            const detailScreen = document.getElementById('story-detail-screen');
+            if (!detailScreen.classList.contains('hidden')) {
+                muatDaftarChapter(detailScreen.dataset.activeStoryId);
+            }
+        }
+    );
+    syncListeners.push(chaptersUnsub);
+    
+    // Listen Bibles
+    const biblesUnsub = onSnapshot(
+        collection(db, 'users', userId, 'bibles'),
+        (snapshot) => {
+            snapshot.docChanges().forEach(change => {
+                const data = { ...change.doc.data(), id: change.doc.id };
+                const tx = localDb.transaction(['story_bible'], 'readwrite');
+                const store = tx.objectStore('story_bible');
+                
+                if (change.type === 'removed') {
+                    store.delete(change.doc.id);
+                } else {
+                    store.put(data);
+                }
+            });
+            // Refresh bible list kalau lagi di bible screen
+            const bibleScreen = document.getElementById('bible-screen');
+            if (!bibleScreen.classList.contains('hidden')) {
+                muatDaftarBible();
+            }
+        }
+    );
+    syncListeners.push(biblesUnsub);
+}
+
+function updateSyncStatus(status) {
+    const statusEl = document.querySelector('.status-sync');
+    if (statusEl) {
+        statusEl.innerText = status;
+        statusEl.style.color = status.includes('✅') ? '#4cd964' : '';
+    }
+}
+
+// ==========================================================================
+// CRUD OPERATIONS (Firestore + IndexedDB)
+// ==========================================================================
+async function saveToFirestore(collectionName, data, docId = null) {
+    if (!currentUser || !isOnline) return;
+    
+    try {
+        const ref = docId 
+            ? doc(db, 'users', currentUser.uid, collectionName, docId)
+            : doc(collection(db, 'users', currentUser.uid, collectionName));
+        
+        await setDoc(ref, data, { merge: true });
+        return ref.id;
+    } catch (err) {
+        console.error("Firestore save error:", err);
+        throw err;
+    }
+}
+
+async function deleteFromFirestore(collectionName, docId) {
+    if (!currentUser || !isOnline) return;
+    
+    try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, collectionName, docId));
+    } catch (err) {
+        console.error("Firestore delete error:", err);
+    }
+}
+
+// ==========================================================================
+// DASHBOARD FUNCTIONS
 // ==========================================================================
 function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
-    const transaction = db.transaction(['stories'], 'readwrite');
-    const store = transaction.objectStore('stories');
-
+    const id = 'story_' + Date.now();
     const ceritaBaru = {
+        id: id,
         judul: judul,
         sinopsis: sinopsis,
         tag: tag,
         status: status,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     };
-
-    store.add(ceritaBaru).onsuccess = function() {
+    
+    // Simpan ke IndexedDB dulu
+    const tx = localDb.transaction(['stories'], 'readwrite');
+    tx.objectStore('stories').put(ceritaBaru).onsuccess = () => {
         loadDashboardData();
+        // Sync ke Firestore kalau online & login
+        if (currentUser && isOnline) {
+            saveToFirestore('stories', ceritaBaru, id);
+        }
     };
 }
 
 function loadDashboardData() {
-    if (!db) return;
+    if (!localDb) return;
 
-    const transaction = db.transaction(['stories'], 'readonly');
+    const transaction = localDb.transaction(['stories'], 'readonly');
     const store = transaction.objectStore('stories');
     const getAllRequest = store.getAll();
 
     getAllRequest.onsuccess = function(event) {
         const semuaCerita = event.target.result;
-
+        
         let hitungDraft = 0;
         let hitungEditing = 0;
         let hitungPublished = 0;
 
         semuaCerita.forEach(cerita => {
-            if (cerita.status.toLowerCase() === 'draft') hitungDraft++;
-            if (cerita.status.toLowerCase() === 'editing') hitungEditing++;
-            if (cerita.status.toLowerCase() === 'published') hitungPublished++;
+            if (cerita.status?.toLowerCase() === 'draft') hitungDraft++;
+            if (cerita.status?.toLowerCase() === 'editing') hitungEditing++;
+            if (cerita.status?.toLowerCase() === 'published') hitungPublished++;
         });
 
         const elDraft = document.getElementById('count-draft');
         const elEditing = document.getElementById('count-editing');
         const elPublished = document.getElementById('count-published');
-
+        
         if(elDraft) elDraft.innerText = hitungDraft;
         if(elEditing) elEditing.innerText = hitungEditing;
         if(elPublished) elPublished.innerText = hitungPublished;
-
+        
         const projectList = document.querySelector('.project-list');
         projectList.innerHTML = '<h2>Proyek Aktif</h2>';
-
+        
         if (semuaCerita.length === 0) {
             projectList.innerHTML += '<p style="color: #888; font-size: 0.9rem; text-align: center; margin-top: 20px;">Belum ada cerita. Klik tombol di bawah untuk mulai.</p>';
             return;
@@ -234,14 +292,14 @@ function loadDashboardData() {
             const card = document.createElement('div');
             card.className = 'focus-block project-card';
             card.style.cursor = 'pointer';
-
             card.onclick = () => bukaDetailCerita(cerita);
 
-            const statusClass = cerita.status.toLowerCase() === 'editing' ? 'badge-editing' : (cerita.status.toLowerCase() === 'published' ? 'badge-published' : 'badge-draft');
+            const statusClass = cerita.status?.toLowerCase() === 'editing' ? 'badge-editing' : 
+                               (cerita.status?.toLowerCase() === 'published' ? 'badge-published' : 'badge-draft');
 
             card.innerHTML = `
                 <h3>${cerita.judul}</h3>
-                <p class="meta-data">${cerita.sinopsis.substring(0, 30)}... | Tag: ${cerita.tag}</p>
+                <p class="meta-data">${cerita.sinopsis?.substring(0, 30) || ''}... | Tag: ${cerita.tag}</p>
                 <span class="badge ${statusClass}">${cerita.status}</span>
             `;
 
@@ -255,17 +313,21 @@ function loadDashboardData() {
                 e.stopPropagation(); 
                 const judulBaru = prompt("Edit Judul:", cerita.judul);
                 if (judulBaru === null) return; 
-
+                
                 const sinopsisBaru = prompt("Edit Sinopsis:", cerita.sinopsis);
                 const tagBaru = prompt("Edit Tag:", cerita.tag);
 
-                const tx = db.transaction(['stories'], 'readwrite');
                 cerita.judul = judulBaru || cerita.judul;
                 cerita.sinopsis = sinopsisBaru || cerita.sinopsis;
                 cerita.tag = tagBaru || cerita.tag;
+                cerita.updatedAt = new Date().toISOString();
 
+                const tx = localDb.transaction(['stories'], 'readwrite');
                 tx.objectStore('stories').put(cerita).onsuccess = () => {
                     loadDashboardData();
+                    if (currentUser && isOnline) {
+                        saveToFirestore('stories', cerita, cerita.id);
+                    }
                 };
             };
 
@@ -274,27 +336,42 @@ function loadDashboardData() {
             btnDel.innerText = 'Hapus';
             btnDel.onclick = (e) => {
                 e.stopPropagation(); 
-                if(confirm(`PERINGATAN FATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen? Seluruh Chapter dan Story Bible di dalamnya akan ikut lenyap.`)) {
-                    const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
+                if(confirm(`PERINGATAN FATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen?`)) {
+                    // Hapus dari IndexedDB
+                    const tx = localDb.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
                     tx.objectStore('stories').delete(cerita.id);
-
+                    
                     tx.objectStore('chapters').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
-                            if(cursor.value.storyId === cerita.id) cursor.delete();
+                            if(cursor.value.storyId === cerita.id) {
+                                cursor.delete();
+                                if (currentUser && isOnline) {
+                                    deleteFromFirestore('chapters', cursor.value.id);
+                                }
+                            }
                             cursor.continue();
                         }
                     };
-
+                    
                     tx.objectStore('story_bible').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
-                            if(cursor.value.storyId === cerita.id) cursor.delete();
+                            if(cursor.value.storyId === cerita.id) {
+                                cursor.delete();
+                                if (currentUser && isOnline) {
+                                    deleteFromFirestore('bibles', cursor.value.id);
+                                }
+                            }
                             cursor.continue();
                         }
                     };
+                    
                     tx.oncomplete = () => {
                         loadDashboardData();
+                        if (currentUser && isOnline) {
+                            deleteFromFirestore('stories', cerita.id);
+                        }
                     }; 
                 }
             };
@@ -308,51 +385,28 @@ function loadDashboardData() {
 }
 
 // ==========================================================================
-// 5. SERVICE WORKER & UI AWAL
-// ==========================================================================
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .catch(err => console.error('Pendaftaran Service Worker gagal:', err));
-    });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const btnTulis = document.querySelector('.fab-action');
-    if (btnTulis) {
-        btnTulis.addEventListener('click', () => {
-            const judulInput = prompt("Masukkan Judul Cerita:");
-            if (!judulInput) return;
-            const sinopsisInput = prompt("Masukkan Sinopsis Singkat:");
-            const tagInput = prompt("Masukkan Tag (Contoh: Misteri, Sci-Fi):");
-            tambahCerita(judulInput, sinopsisInput, tagInput, 'Draft');
-        });
-    }
-});
-
-// ==========================================================================
-// 6. ARSITEKTUR NAVIGASI & EDITOR
+// NAVIGASI & EDITOR
 // ==========================================================================
 function bukaDetailCerita(cerita) {
     document.querySelector('.viewing-area').classList.add('hidden');
     document.querySelector('.interaction-area').classList.add('hidden');
     document.querySelector('.fab-action').classList.add('hidden');
-
+    
     const detailScreen = document.getElementById('story-detail-screen');
     detailScreen.classList.remove('hidden');
     detailScreen.dataset.activeStoryId = cerita.id;
-
+    
     document.getElementById('detail-story-title').innerText = cerita.judul;
     document.getElementById('detail-story-synopsis').innerText = cerita.sinopsis;
-
+    
     const dropdown = document.getElementById('story-status-dropdown');
     if (dropdown) dropdown.value = cerita.status;
-
+    
     muatDaftarChapter(cerita.id);
 }
 
 function muatDaftarChapter(storyId) {
-    const transaction = db.transaction(['chapters'], 'readonly');
+    const transaction = localDb.transaction(['chapters'], 'readonly');
     const store = transaction.objectStore('chapters');
     const container = document.getElementById('chapters-container');
     if (!container) return;
@@ -360,7 +414,7 @@ function muatDaftarChapter(storyId) {
 
     store.getAll().onsuccess = function(event) {
         const semuaChapter = event.target.result;
-        const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === Number(storyId));
+        const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
 
         if (chapterCeritaIni.length === 0) {
             container.innerHTML = '<p style="color:#666; font-size:0.9rem; text-align:center; margin-top:20px;">Belum ada chapter. Klik "+ Bab Baru" untuk mulai menulis.</p>';
@@ -371,7 +425,7 @@ function muatDaftarChapter(storyId) {
             const chCard = document.createElement('div');
             chCard.className = 'chapter-card';
             chCard.onclick = () => bukaEditor(storyId, ch);
-
+            
             chCard.innerHTML = `
                 <h4>${ch.judulChapter}</h4>
                 <span>Terakhir diubah: ${new Date(ch.terakhirDiubah).toLocaleDateString('id-ID')}</span>
@@ -386,7 +440,7 @@ function bukaEditor(storyId, dataChapter = null) {
     const editorScreen = document.getElementById('editor-screen');
     editorScreen.classList.remove('hidden');
     editorScreen.dataset.activeStoryId = storyId;
-
+    
     if (dataChapter) {
         editorScreen.dataset.activeChapterId = dataChapter.id;
         document.getElementById('editor-title').innerText = "Edit Chapter";
@@ -415,25 +469,27 @@ function tutupEditor() {
         const storyId = editorScreen.dataset.activeStoryId;
         editorScreen.classList.add('hidden');
         delete editorScreen.dataset.activeChapterId; 
-
-        const transaction = db.transaction(['stories'], 'readonly');
-        transaction.objectStore('stories').get(Number(storyId)).onsuccess = function(event) {
-            bukaDetailCerita(event.target.result);
+        
+        const transaction = localDb.transaction(['stories'], 'readonly');
+        transaction.objectStore('stories').get(storyId).onsuccess = function(event) {
+            if (event.target.result) {
+                bukaDetailCerita(event.target.result);
+            }
         };
     });
 }
 
 // ==========================================================================
-// 7. EDITOR UTAMA & AUTO-SAVE
+// EDITOR & AUTO-SAVE
 // ==========================================================================
 let waktuKetik;
 const JEDA_SIMPAN = 2000;
 
 function simpanDraftChapter(callback = null) {
     const editorScreen = document.getElementById('editor-screen');
-    const storyId = Number(editorScreen.dataset.activeStoryId);
+    const storyId = editorScreen.dataset.activeStoryId;
     let chapterId = editorScreen.dataset.activeChapterId; 
-
+    
     const judulChapter = document.getElementById('chapter-title').value;
     const isiKonten = document.getElementById('chapter-content').value;
 
@@ -442,27 +498,25 @@ function simpanDraftChapter(callback = null) {
         return;
     }
 
-    const transaction = db.transaction(['chapters'], 'readwrite');
-    const store = transaction.objectStore('chapters');
-
+    const id = chapterId || ('chapter_' + Date.now());
     const dataChapter = {
+        id: id,
         storyId: storyId,
         judulChapter: judulChapter || 'Chapter Tanpa Judul',
         isi: isiKonten,
         terakhirDiubah: new Date().toISOString()
     };
 
-    let request;
-    if (chapterId) {
-        dataChapter.id = Number(chapterId);
-        request = store.put(dataChapter);
-    } else {
-        request = store.add(dataChapter);
-    }
-
-    request.onsuccess = (event) => {
-        if (!chapterId) editorScreen.dataset.activeChapterId = event.target.result; 
+    const tx = localDb.transaction(['chapters'], 'readwrite');
+    tx.objectStore('chapters').put(dataChapter).onsuccess = () => {
+        if (!chapterId) editorScreen.dataset.activeChapterId = id;
         indikatorTersimpan();
+        
+        // Sync ke Firestore
+        if (currentUser && isOnline) {
+            saveToFirestore('chapters', dataChapter, id);
+        }
+        
         if (typeof callback === 'function') callback();
     };
 }
@@ -487,26 +541,24 @@ function hitungKata() {
 }
 
 // ==========================================================================
-// 8. STORY BIBLE & EXPORT
+// STORY BIBLE
 // ==========================================================================
 function bukaBibleList() {
     document.getElementById('story-detail-screen').classList.add('hidden');
-    const detailScreen = document.getElementById('story-detail-screen');
     const bibleScreen = document.getElementById('bible-screen');
-
     bibleScreen.classList.remove('hidden');
-    bibleScreen.dataset.activeStoryId = detailScreen.dataset.activeStoryId;
+    bibleScreen.dataset.activeStoryId = document.getElementById('story-detail-screen').dataset.activeStoryId;
     muatDaftarBible();
 }
 
 function muatDaftarBible() {
-    const storyId = Number(document.getElementById('bible-screen').dataset.activeStoryId);
+    const storyId = document.getElementById('bible-screen').dataset.activeStoryId;
     const container = document.getElementById('bible-container');
     container.innerHTML = '';
 
-    const transaction = db.transaction(['story_bible'], 'readonly');
+    const transaction = localDb.transaction(['story_bible'], 'readonly');
     const store = transaction.objectStore('story_bible');
-
+    
     store.getAll().onsuccess = function(event) {
         const semuaBible = event.target.result;
         const bibleCeritaIni = semuaBible.filter(b => b.storyId === storyId);
@@ -561,42 +613,48 @@ function tutupBibleEditor() {
 }
 
 function simpanBibleEntry() {
-    const storyId = Number(document.getElementById('bible-screen').dataset.activeStoryId);
+    const storyId = document.getElementById('bible-screen').dataset.activeStoryId;
     const editorScreen = document.getElementById('bible-editor-screen');
     const bibleId = editorScreen.dataset.activeBibleId;
-
+    
     const kategori = document.getElementById('bible-category').value;
     const nama = document.getElementById('bible-entry-title').value;
     const deskripsi = document.getElementById('bible-entry-content').value;
 
     if (!nama.trim()) { alert("Nama tidak boleh kosong!"); return; }
 
-    const transaction = db.transaction(['story_bible'], 'readwrite');
-    const store = transaction.objectStore('story_bible');
-
-    const dataBaru = { storyId, kategori, nama, deskripsi, terakhirDiubah: new Date().toISOString() };
-    if (bibleId) {
-        dataBaru.id = Number(bibleId);
-        store.put(dataBaru).onsuccess = () => { 
-            tutupBibleEditor(); 
-            muatDaftarBible(); 
-        };
-    } else {
-        store.add(dataBaru).onsuccess = () => { 
-            tutupBibleEditor(); 
-            muatDaftarBible(); 
-        };
-    }
+    const id = bibleId || ('bible_' + Date.now());
+    const dataBaru = { 
+        id: id,
+        storyId, 
+        kategori, 
+        nama, 
+        deskripsi, 
+        terakhirDiubah: new Date().toISOString() 
+    };
+    
+    const tx = localDb.transaction(['story_bible'], 'readwrite');
+    tx.objectStore('story_bible').put(dataBaru).onsuccess = () => { 
+        // Sync ke Firestore
+        if (currentUser && isOnline) {
+            saveToFirestore('bibles', dataBaru, id);
+        }
+        tutupBibleEditor(); 
+        muatDaftarBible(); 
+    };
 }
 
+// ==========================================================================
+// EXPORT
+// ==========================================================================
 function exportCeritaKeTXT() {
     const detailScreen = document.getElementById('story-detail-screen');
-    const storyId = Number(detailScreen.dataset.activeStoryId);
+    const storyId = detailScreen.dataset.activeStoryId;
     const judulCerita = document.getElementById('detail-story-title').innerText;
 
-    const transaction = db.transaction(['chapters'], 'readonly');
+    const transaction = localDb.transaction(['chapters'], 'readonly');
     const store = transaction.objectStore('chapters');
-
+    
     store.getAll().onsuccess = function(event) {
         const semuaChapter = event.target.result;
         const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
@@ -627,16 +685,94 @@ function exportCeritaKeTXT() {
 }
 
 // ==========================================================================
-// 9. SEMUA EVENT LISTENER
+// SERVICE WORKER
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .catch(err => console.error('Pendaftaran Service Worker gagal:', err));
+    });
+}
+
+// ==========================================================================
+// EVENT LISTENERS & INIT
+// ==========================================================================
+window.addEventListener('online', () => {
+    isOnline = true;
+    updateSyncStatus('🔄 Online');
+    if (currentUser) {
+        // Re-sync semua data lokal ke Firestore
+        syncLocalToCloud();
+    }
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    updateSyncStatus('✈️ Offline Mode');
+});
+
+async function syncLocalToCloud() {
+    if (!currentUser || !isOnline) return;
+    
+    // Sync stories
+    const storiesTx = localDb.transaction(['stories'], 'readonly');
+    const stories = await new Promise(r => storiesTx.objectStore('stories').getAll().onsuccess = e => r(e.target.result));
+    for (const story of stories) {
+        await saveToFirestore('stories', story, story.id);
+    }
+    
+    // Sync chapters
+    const chaptersTx = localDb.transaction(['chapters'], 'readonly');
+    const chapters = await new Promise(r => chaptersTx.objectStore('chapters').getAll().onsuccess = e => r(e.target.result));
+    for (const ch of chapters) {
+        await saveToFirestore('chapters', ch, ch.id);
+    }
+    
+    // Sync bibles
+    const biblesTx = localDb.transaction(['story_bible'], 'readonly');
+    const bibles = await new Promise(r => biblesTx.objectStore('story_bible').getAll().onsuccess = e => r(e.target.result));
+    for (const bible of bibles) {
+        await saveToFirestore('bibles', bible, bible.id);
+    }
+    
+    updateSyncStatus('✅ Synced');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Init IndexedDB
+    localDb = await initLocalDb();
+    
+    // Auth state listener
+    onAuthStateChanged(auth, (user) => {
+        updateAuthUI(user);
+    });
+    
+    // Login/Logout buttons
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) btnLogin.addEventListener('click', login);
+    
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) btnLogout.addEventListener('click', logout);
+
+    // Tombol Tulis
+    const btnTulis = document.querySelector('.fab-action');
+    if (btnTulis) {
+        btnTulis.addEventListener('click', () => {
+            const judulInput = prompt("Masukkan Judul Cerita:");
+            if (!judulInput) return;
+            const sinopsisInput = prompt("Masukkan Sinopsis Singkat:");
+            const tagInput = prompt("Masukkan Tag (Contoh: Misteri, Sci-Fi):");
+            tambahCerita(judulInput, sinopsisInput, tagInput, 'Draft');
+        });
+    }
+    
     // Navigasi
     const btnBackEditor = document.getElementById('btn-back');
     if (btnBackEditor) btnBackEditor.addEventListener('click', tutupEditor);
 
     const btnBackDashboard = document.getElementById('btn-back-dashboard');
     if (btnBackDashboard) btnBackDashboard.addEventListener('click', kembaliKeDashboard);
-
+    
     const btnNewChapter = document.getElementById('btn-new-chapter');
     if (btnNewChapter) btnNewChapter.addEventListener('click', () => {
         const storyId = document.getElementById('story-detail-screen').dataset.activeStoryId;
@@ -663,22 +799,27 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(waktuKetik);
         simpanDraftChapter();
     });
-
+    
     // Status Dropdown
     const statusDropdown = document.getElementById('story-status-dropdown');
     if (statusDropdown) {
         statusDropdown.addEventListener('change', (e) => {
-            const storyId = Number(document.getElementById('story-detail-screen').dataset.activeStoryId);
+            const storyId = document.getElementById('story-detail-screen').dataset.activeStoryId;
             const statusBaru = e.target.value;
-            const transaction = db.transaction(['stories'], 'readwrite');
-            const store = transaction.objectStore('stories');
-
+            
+            const tx = localDb.transaction(['stories'], 'readwrite');
+            const store = tx.objectStore('stories');
+            
             store.get(storyId).onsuccess = function(event) {
                 const dataCerita = event.target.result;
                 if (dataCerita) {
                     dataCerita.status = statusBaru;
+                    dataCerita.updatedAt = new Date().toISOString();
                     store.put(dataCerita).onsuccess = () => {
                         statusDropdown.style.color = '#4cd964';
+                        if (currentUser && isOnline) {
+                            saveToFirestore('stories', dataCerita, storyId);
+                        }
                         setTimeout(() => { statusDropdown.style.color = '#fff'; }, 1000);
                     };
                 }
