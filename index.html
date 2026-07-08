@@ -6,12 +6,47 @@
     <title>Dashboard Penulis</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
+     <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+         const firebaseConfig = {
+  apiKey: "AIzaSyC5HyTM97NXq1poVuAJAi5H0wzVDnKtNco",
+  authDomain: "dasboard-penulis.firebaseapp.com",
+  projectId: "dasboard-penulis",
+  storageBucket: "dasboard-penulis.firebasestorage.app",
+  messagingSenderId: "212341399710",
+  appId: "1:212341399710:web:2b58e5d56f29d3721b5b8f"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+         if (err.code === 'failed-precondition') {
+                console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+            } else if (err.code === 'unimplemented') {
+                console.log('Browser tidak support persistence');
+            }
+        });
+    </script>
 </head>
 <body>
     <header class="viewing-area">
-        <h1>Dashboard</h1>
-        <p class="status-sync">Data tersimpan lokal ⚡</p>
-    </header>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="status-sync">⏳ Memuat...</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span id="user-name" style="color: #888; font-size: 0.8rem;"></span>
+            <button id="btn-login" class="badge badge-published" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
+                🔗 Login Google
+            </button>
+            <button id="btn-logout" class="badge badge-editing hidden" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
+                🚪 Logout
+            </button>
+        </div>
+    </div>
+</header>
 
     <main class="interaction-area">
         
