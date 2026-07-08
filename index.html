@@ -14,7 +14,6 @@
     
     <!-- Firebase Config -->
     <script>
-        // GANTI INI DENGAN CONFIG PUNYA KAMU!
         const firebaseConfig = {
             apiKey: "AIzaSyC5HyTM97NXq1poVuAJAi5H0wzVDnKtNco",
             authDomain: "dasboard-penulis.firebaseapp.com",
@@ -25,12 +24,10 @@
         };
         firebase.initializeApp(firebaseConfig);
         
-        // Global variables
         window.db = firebase.firestore();
         window.auth = firebase.auth();
         window.provider = new firebase.auth.GoogleAuthProvider();
         
-        // Enable offline persistence
         window.db.enablePersistence({ synchronizeTabs: true })
             .catch(err => {
                 if (err.code === 'failed-precondition') {
@@ -43,75 +40,62 @@
 </head>
 <body>
     <header class="viewing-area">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div>
-            <h1>Dashboard</h1>
-            <p class="status-sync">⏳ Memuat...</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <h1>Dashboard</h1>
+                <p class="status-sync">⏳ Memuat...</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="user-name" style="color: #888; font-size: 0.8rem;"></span>
+                <button id="btn-login" class="badge badge-published" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
+                    🔗 Login Google
+                </button>
+                <button id="btn-logout" class="badge badge-editing hidden" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
+                    🚪 Logout
+                </button>
+            </div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <span id="user-name" style="color: #888; font-size: 0.8rem;"></span>
-            <button id="btn-login" class="badge badge-published" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
-                🔗 Login Google
-            </button>
-            <button id="btn-logout" class="badge badge-editing hidden" style="border:none; cursor:pointer; font-size: 0.8rem; padding: 6px 12px;">
-                🚪 Logout
-            </button>
-        </div>
-    </div>
-</header>
+    </header>
 
     <main class="interaction-area">
-        
-<section class="dashboard-stats">
+        <section class="dashboard-stats">
             <div class="focus-block">
                 <h3>Draft</h3>
-                <!-- Tambahkan ID count-draft -->
                 <p class="count" id="count-draft">0</p>
             </div>
             <div class="focus-block">
                 <h3>Editing</h3>
-                <!-- Tambahkan ID count-editing -->
                 <p class="count" id="count-editing">0</p>
             </div>
             <div class="focus-block">
                 <h3>Published</h3>
-                <!-- Tambahkan ID count-published -->
                 <p class="count" id="count-published">0</p>
             </div>
         </section>
 
         <section class="project-list">
             <h2>Proyek Aktif</h2>
-            <div class="focus-block project-card">
-                <h3>Rahasia Hutan Pinus</h3>
-                <p class="meta-data">Chapter 5 | Tag: Misteri</p>
-                <span class="badge badge-editing">Editing</span>
-            </div>
-             <div class="focus-block project-card">
-                <h3>Ekspedisi Nebula</h3>
-                <p class="meta-data">Story Bible Setup | Tag: Sci-Fi</p>
-                <span class="badge badge-draft">Draft</span>
-            </div>
+            <!-- HAPUS DATA HARDCODE INI - biar dari JS -->
         </section>
 
-<section class="focus-block" style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-    <button onclick="exportSemuaData()" class="badge badge-published" style="border:none; cursor:pointer; font-size: 0.85rem; padding: 8px 16px;">
-        💾 Backup Semua Data
-    </button>
-    <label class="badge badge-editing" style="border:none; cursor:pointer; font-size: 0.85rem; padding: 8px 16px; display: inline-block;">
-        📁 Restore Data
-        <input type="file" accept=".json" onchange="importData(this.files[0])" style="display: none;">
-    </label>
-</section>
+        <section class="focus-block" style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onclick="exportSemuaData()" class="badge badge-published" style="border:none; cursor:pointer; font-size: 0.85rem; padding: 8px 16px;">
+                💾 Backup Semua Data
+            </button>
+            <label class="badge badge-editing" style="border:none; cursor:pointer; font-size: 0.85rem; padding: 8px 16px; display: inline-block;">
+                📁 Restore Data
+                <input type="file" accept=".json" onchange="importData(this.files[0])" style="display: none;">
+            </label>
+        </section>
 
         <button class="fab-action">+ Tulis Cerita</button>
+        
         <footer style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
             <p style="color: #444; font-size: 0.75rem;">© 2026 | Design by Sahawn</p>
         </footer>
-
     </main>
 
-    <script src="app.js"></script>
+    <!-- Story Detail Screen -->
     <div id="story-detail-screen" class="hidden">
         <header class="detail-header">
             <button id="btn-back-dashboard" class="icon-btn">← Dashboard</button>
@@ -119,8 +103,7 @@
             <button id="btn-open-bible" class="icon-btn" style="color: #a855f7;">📖 Bible</button>
         </header>
         <main class="detail-workspace">
-                        <section class="focus-block synopsis-box">
-                <!-- Header Sinopsis & Dropdown Status sejajar -->
+            <section class="focus-block synopsis-box">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h3>Sinopsis</h3>
                     <select id="story-status-dropdown" style="background:#2a2a2a; color:#fff; border:1px solid #444; outline:none; padding:4px 12px; border-radius:12px; font-family:inherit; font-size: 0.85rem; cursor:pointer;">
@@ -132,7 +115,6 @@
                 <p id="detail-story-synopsis">Memuat sinopsis...</p>
             </section>
 
-
             <section class="chapter-list-section">
                 <div class="section-header">
                     <h2>Daftar Chapter</h2>
@@ -141,28 +123,28 @@
                         <button id="btn-new-chapter" class="badge badge-editing" style="border:none; cursor:pointer;">+ Bab Baru</button>
                     </div>
                 </div>
-                
-                <div id="chapters-container">
-                    </div>
-                
+                <div id="chapters-container"></div>
             </section>
         </main>
     </div>
+
+    <!-- Editor Screen -->
     <div id="editor-screen" class="hidden">
         <header class="editor-header">
             <button id="btn-back" class="icon-btn">← Kembali</button>
             <h2 id="editor-title">Judul Cerita</h2>
             <button id="btn-save" class="icon-btn">Simpan</button>
         </header>
-       <main class="editor-workspace">
+        <main class="editor-workspace">
             <input type="text" id="chapter-title" placeholder="Judul Chapter (Opsional)" />
             <textarea id="chapter-content" placeholder="Mulai merangkai kata..."></textarea>
-            
             <div style="text-align: right; margin-top: 8px;">
                 <span id="word-count" style="color: #666; font-size: 0.85rem; font-weight: 500;">0 Kata</span>
             </div>
         </main>
     </div>
+
+    <!-- Bible Screen -->
     <div id="bible-screen" class="hidden">
         <header class="editor-header">
             <button id="btn-back-detail-from-bible" class="icon-btn">← Cerita</button>
@@ -171,11 +153,11 @@
         </header>
         <main class="editor-workspace" style="overflow-y: auto;">
             <p style="color:#888; font-size:0.9rem; margin-bottom: 16px;">Catatan karakter, lokasi, dan world-building.</p>
-            <div id="bible-container">
-                </div>
+            <div id="bible-container"></div>
         </main>
     </div>
 
+    <!-- Bible Editor Screen -->
     <div id="bible-editor-screen" class="hidden">
         <header class="editor-header">
             <button id="btn-cancel-bible" class="icon-btn" style="color: #ff3b30;">Batal</button>
@@ -191,7 +173,9 @@
             </select>
             <input type="text" id="bible-entry-title" placeholder="Nama Karakter / Lokasi..." style="background:none; border:none; color:#fff; font-size:1.5rem; font-weight:700; margin-bottom:16px; outline:none; font-family:inherit;" />
             <textarea id="bible-entry-content" placeholder="Tulis deskripsi, ciri fisik, atau detail penting di sini..."></textarea>
+        </main>
     </div>
+
+    <script src="app.js"></script>
 </body>
-</main>
 </html>
