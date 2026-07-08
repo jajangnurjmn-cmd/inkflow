@@ -6,63 +6,20 @@
 }
 
 body {
-    /* Menerapkan font bawaan perangkat secara otomatis */
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #000000; /* Hitam pekat untuk AMOLED */
+    background-color: #000000;
     color: #ffffff;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Mengunci body agar tidak scroll keseluruhan */
+    overflow: hidden;
 }
 
 /* =========================================
-   RESPONSIVITAS DESKTOP & TABLET
+   MOBILE FIRST (default < 768px)
 ========================================= */
-body {
-    /* Menimpa pengaturan body sebelumnya untuk Desktop */
-    max-width: 768px; /* Lebar ideal tablet / aplikasi desktop */
-    margin: 0 auto; /* Memposisikan aplikasi tepat di tengah layar */
-    border-left: 1px solid #333;
-    border-right: 1px solid #333;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8);
-    position: relative;
-}
-
-/* Memaksa layar overlay (Editor, Bible, Detail) mengikuti lebar Body */
-#editor-screen, 
-#story-detail-screen, 
-#bible-screen, 
-#bible-editor-screen {
-    max-width: 768px;
-    left: 50% !important;
-    transform: translateX(-50%);
-}
-
-/* Desain Tombol Aksi Kecil (Edit/Hapus) */
-.card-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 14px;
-}
-
-.btn-small {
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-
-.btn-small:active { opacity: 0.7; }
-.btn-edit { background-color: #2c3e50; color: #3498db; }
-.btn-delete { background-color: #3b1c1c; color: #e74c3c; }
-
-/* 1. Viewing Area (Atas) */
 .viewing-area {
-    flex: 0.35; /* Mengambil 35% tinggi layar */
+    flex: 0.35;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -81,17 +38,16 @@ body {
     margin-top: 8px;
 }
 
-/* 2. Interaction Area (Bawah) */
 .interaction-area {
-    flex: 0.65; /* Mengambil 65% tinggi layar */
-    background-color: #121212; /* Warna abu-abu gelap */
-    border-top-left-radius: 26px; /* Lengkungan One UI */
+    flex: 0.65;
+    background-color: #121212;
+    border-top-left-radius: 26px;
     border-top-right-radius: 26px;
     padding: 24px;
-    overflow-y: auto; /* Scroll hanya terjadi di area ini */
+    overflow-y: auto;
 }
 
-/* 3. Focus Blocks */
+/* Focus Blocks */
 .dashboard-stats {
     display: flex;
     gap: 16px;
@@ -101,14 +57,14 @@ body {
 .focus-block {
     background-color: #242424;
     padding: 16px;
-    border-radius: 20px; 
+    border-radius: 20px;
     flex: 1;
     text-align: center;
     transition: transform 0.2s ease;
 }
 
 .focus-block:active {
-    transform: scale(0.96); /* Efek tombol ditekan */
+    transform: scale(0.96);
 }
 
 .focus-block h3 {
@@ -123,7 +79,7 @@ body {
     font-weight: 700;
 }
 
-/* Daftar Cerita */
+/* Project List */
 .project-list h2 {
     font-size: 1.2rem;
     margin-bottom: 16px;
@@ -148,7 +104,6 @@ body {
 }
 
 /* Badges */
-/* Badges */
 .badge {
     padding: 4px 10px;
     border-radius: 12px;
@@ -157,15 +112,35 @@ body {
 }
 .badge-editing { background-color: #3d3a1e; color: #ffeb3b; }
 .badge-draft { background-color: #2a2a2a; color: #aaaaaa; }
-/* Tambahkan baris ini di bawahnya: */
 .badge-published { background-color: #1b3a2a; color: #4cd964; }
 
-/* Tombol Aksi (Floating Action Button) */
+/* Card Actions */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.btn-small {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-small:active { opacity: 0.7; }
+.btn-edit { background-color: #2c3e50; color: #3498db; }
+.btn-delete { background-color: #3b1c1c; color: #e74c3c; }
+
+/* FAB */
 .fab-action {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background-color: #007aff; /* Warna biru standar */
+    background-color: #007aff;
     color: white;
     border: none;
     padding: 16px 24px;
@@ -174,16 +149,20 @@ body {
     font-weight: 600;
     box-shadow: 0 8px 16px rgba(0, 122, 255, 0.3);
     cursor: pointer;
+    z-index: 50;
 }
 
 /* =========================================
-   ARSITEKTUR ROUTING & EDITOR SCREEN
+   HIDDEN / OVERLAY SCREENS
 ========================================= */
 .hidden {
     display: none !important;
 }
 
-#editor-screen {
+#editor-screen,
+#story-detail-screen,
+#bible-screen,
+#bible-editor-screen {
     position: fixed;
     top: 0;
     left: 0;
@@ -195,12 +174,13 @@ body {
     flex-direction: column;
 }
 
-.editor-header {
+.editor-header,
+.detail-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 16px 24px;
-    background-color: #121212; /* Sesuai tone interaksi One UI */
+    background-color: #121212;
 }
 
 .editor-header h2 {
@@ -263,29 +243,7 @@ body {
     color: #555555;
 }
 
-/* =========================================
-   DETAIL CERITA SCREEN
-========================================= */
-#story-detail-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    background-color: #000000;
-    z-index: 90;
-    display: flex;
-    flex-direction: column;
-}
-
-.detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background-color: #121212;
-}
-
+/* Detail Screen */
 .detail-workspace {
     flex: 1;
     padding: 24px;
@@ -330,9 +288,7 @@ body {
     color: #888888;
 }
 
-/* =========================================
-   STORY BIBLE UI
-========================================= */
+/* Bible */
 .bible-card {
     background-color: #1a1a1a;
     padding: 16px;
@@ -353,7 +309,7 @@ body {
     color: #aaaaaa;
     line-height: 1.4;
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* Batasi teks hanya 2 baris */
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -368,26 +324,11 @@ body {
     background-color: #2d1b4e;
     color: #d8b4fe;
 }
-/* =========================================
-   STRUKTUR LAYAR BIBLE (FLEXBOX)
-   ========================================= */
-   #bible-screen,
-   #bible-editor-screen {
-       position: fixed;
-           top: 0;
-               left: 0;
-                   width: 100%;
-                       height: 100vh; /* Memaksa layar penuh 100% tinggi layar HP */
-                           background-color: #000000;
-                               z-index: 110; /* Berada di lapisan paling atas */
-                                   display: flex;
-                                       flex-direction: column; /* Menyusun elemen dari atas ke bawah */
-                                       }
-  /* Aturan khusus agar Editor Bible membentang penuh */
+
 #bible-entry-content {
     flex: 1;
-    height: 100%; /* Ini adalah kunci yang memaksa textarea melar sampai bawah */
-    min-height: 50vh; /* Cadangan untuk browser yang lebih kaku */
+    height: 100%;
+    min-height: 50vh;
     background: none;
     border: none;
     color: #cccccc;
@@ -396,68 +337,58 @@ body {
     resize: none;
     outline: none;
     font-family: inherit;
-}  
+}
 
 /* =========================================
-   RESPONSIVITAS DESKTOP & TABLET
-   (Pastikan kode ini ada di bagian paling bawah style.css)
+   TABLET (768px - 1023px)
 ========================================= */
-body {
-    max-width: 768px; /* Mengunci lebar ala Tablet/Desktop */
-    margin: 0 auto; /* Posisi ke tengah */
-    border-left: 1px solid #1a1a1a;
-    border-right: 1px solid #1a1a1a;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8);
-    position: relative;
-}
+@media (min-width: 768px) and (max-width: 1023px) {
+    body {
+        max-width: 768px;
+        margin: 0 auto;
+        border-left: 1px solid #1a1a1a;
+        border-right: 1px solid #1a1a1a;
+    }
 
-/* Memaksa layar overlay tetap di tengah */
-#editor-screen, 
-#story-detail-screen, 
-#bible-screen, 
-#bible-editor-screen {
-    max-width: 768px;
-    left: 50% !important;
-    transform: translateX(-50%);
-}
+    #editor-screen,
+    #story-detail-screen,
+    #bible-screen,
+    #bible-editor-screen {
+        max-width: 768px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
 
-/* Desain Tombol Aksi Kecil (Edit/Hapus) */
-.card-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 14px;
-}
+    .dashboard-stats {
+        gap: 20px;
+    }
 
-.btn-small {
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
+    .focus-block {
+        padding: 20px;
+    }
 
-.btn-small:active { opacity: 0.7; }
-.btn-edit { background-color: #2c3e50; color: #3498db; }
-.btn-delete { background-color: #3b1c1c; color: #e74c3c; }
+    .focus-block .count {
+        font-size: 2.2rem;
+    }
+
+    .fab-action {
+        right: calc((100vw - 768px) / 2 + 24px);
+    }
+}
 
 /* =========================================
    SIDEBAR DESKTOP (1024px+)
-   ========================================= */
+========================================= */
 @media (min-width: 1024px) {
-    /* Body jadi flex, tapi tetap centered */
     body {
-        display: flex;
         flex-direction: row;
-        max-width: 100%; /* Override 768px */
+        max-width: 100%;
         margin: 0;
         border: none;
         box-shadow: none;
         overflow: hidden;
     }
-    
-    /* Sidebar kiri */
+
     .sidebar-desktop {
         display: flex !important;
         flex-direction: column;
@@ -473,7 +404,7 @@ body {
         z-index: 200;
         overflow-y: auto;
     }
-    
+
     .sidebar-desktop .logo {
         font-size: 1.4rem;
         font-weight: 700;
@@ -481,14 +412,14 @@ body {
         padding: 0 8px;
         color: #ffffff;
     }
-    
+
     .sidebar-desktop .app-tagline {
         font-size: 0.75rem;
         color: #666;
         margin-bottom: 24px;
         padding: 0 8px;
     }
-    
+
     .sidebar-desktop .user-card {
         background: #121212;
         border-radius: 16px;
@@ -498,7 +429,7 @@ body {
         align-items: center;
         gap: 12px;
     }
-    
+
     .sidebar-desktop .user-card .avatar {
         width: 40px;
         height: 40px;
@@ -511,12 +442,12 @@ body {
         font-size: 1rem;
         color: white;
     }
-    
+
     .sidebar-desktop .user-card .user-info {
         flex: 1;
         min-width: 0;
     }
-    
+
     .sidebar-desktop .user-card .name {
         font-size: 0.9rem;
         font-weight: 600;
@@ -525,7 +456,7 @@ body {
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    
+
     .sidebar-desktop .user-card .email {
         font-size: 0.75rem;
         color: #666;
@@ -533,7 +464,7 @@ body {
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    
+
     .sidebar-desktop .nav-section-title {
         font-size: 0.7rem;
         text-transform: uppercase;
@@ -542,7 +473,7 @@ body {
         padding: 0 8px;
         margin-bottom: 8px;
     }
-    
+
     .sidebar-desktop .nav-item {
         display: flex;
         align-items: center;
@@ -555,63 +486,53 @@ body {
         font-size: 0.95rem;
         color: #aaa;
     }
-    
+
     .sidebar-desktop .nav-item:hover {
         background: #1a1a1a;
         color: #fff;
     }
-    
+
     .sidebar-desktop .nav-item.active {
         background: rgba(0, 122, 255, 0.15);
         color: #007aff;
     }
-    
-    /* Main content area */
+
     .main-content {
-        margin-left: 240px; /* Space for sidebar */
+        margin-left: 240px;
         flex: 1;
         display: flex;
+        flex-direction: column;
         justify-content: center;
+        align-items: center;
         background: #000;
         min-height: 100vh;
-    }
-    
-    /* Keep centered layout inside main-content */
-    .viewing-area,
-    .interaction-area,
-    #editor-screen,
-    #story-detail-screen,
-    #bible-screen,
-    #bible-editor-screen {
         max-width: 768px;
-        width: 100%;
-        margin: 0 auto;
-        left: auto !important;
-        transform: none !important;
-        position: relative;
     }
-    
-    /* Viewing area di desktop */
+
+    .viewing-area,
+    .interaction-area {
+        width: 100%;
+        max-width: 768px;
+    }
+
     .viewing-area {
         flex: none;
         padding: 32px 24px 16px;
     }
-    
-    /* Interaction area di desktop */
+
     .interaction-area {
         border-radius: 26px;
         margin: 0 auto 24px;
-        min-height: auto;
+        flex: 1;
     }
-    
-    /* Full screen overlays tetap di tengah */
+
     #editor-screen,
     #story-detail-screen,
     #bible-screen,
     #bible-editor-screen {
         position: fixed;
         top: 0;
-        left: 240px !important; /* Start after sidebar */
+        left: 240px;
         right: 0;
         width: auto;
         max-width: none;
@@ -620,8 +541,7 @@ body {
         justify-content: center;
         background: rgba(0,0,0,0.9);
     }
-    
-    /* Inner container untuk centered content */
+
     #editor-screen > *,
     #story-detail-screen > *,
     #bible-screen > *,
@@ -629,87 +549,57 @@ body {
         max-width: 768px;
         width: 100%;
     }
-    
-    /* FAB position */
+
     .fab-action {
         right: calc((100vw - 240px - 768px) / 2 + 24px);
     }
-    
-    /* Stats desktop */
+
     .dashboard-stats {
         gap: 20px;
     }
-    
+
     .focus-block {
         padding: 24px;
     }
-    
+
     .focus-block .count {
         font-size: 2.5rem;
     }
-    
-    /* Project grid */
+
     .project-list {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 16px;
     }
-    
+
     .project-card {
         margin-bottom: 0;
     }
-    
-    /* Editor desktop */
+
     .editor-workspace {
         padding: 32px;
     }
-    
+
     #chapter-content {
         min-height: 400px;
     }
-    
-    /* Detail desktop */
+
     .detail-workspace {
         padding: 32px;
     }
-    
-    /* Bible desktop */
+
     #bible-container {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 16px;
     }
-    
+
     .bible-card {
         margin-bottom: 0;
     }
 }
 
-/* Hide sidebar on mobile/tablet */
+/* Hide sidebar on mobile/tablet (default) */
 .sidebar-desktop {
     display: none;
-}
-
-/* =========================================
-   TABLET (768px - 1023px) - Centered tetap
-   ========================================= */
-@media (min-width: 768px) and (max-width: 1023px) {
-    body {
-        max-width: 768px;
-        margin: 0 auto;
-        border-left: 1px solid #1a1a1a;
-        border-right: 1px solid #1a1a1a;
-    }
-    
-    .dashboard-stats {
-        gap: 20px;
-    }
-    
-    .focus-block {
-        padding: 20px;
-    }
-    
-    .focus-block .count {
-        font-size: 2.2rem;
-    }
 }
