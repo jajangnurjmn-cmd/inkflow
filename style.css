@@ -442,4 +442,274 @@ body {
 .btn-edit { background-color: #2c3e50; color: #3498db; }
 .btn-delete { background-color: #3b1c1c; color: #e74c3c; }
 
+/* =========================================
+   SIDEBAR DESKTOP (1024px+)
+   ========================================= */
+@media (min-width: 1024px) {
+    /* Body jadi flex, tapi tetap centered */
+    body {
+        display: flex;
+        flex-direction: row;
+        max-width: 100%; /* Override 768px */
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        overflow: hidden;
+    }
+    
+    /* Sidebar kiri */
+    .sidebar-desktop {
+        display: flex !important;
+        flex-direction: column;
+        width: 240px;
+        min-width: 240px;
+        height: 100vh;
+        background: #000000;
+        border-right: 1px solid #1a1a1a;
+        padding: 24px 16px;
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 200;
+        overflow-y: auto;
+    }
+    
+    .sidebar-desktop .logo {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+        padding: 0 8px;
+        color: #ffffff;
+    }
+    
+    .sidebar-desktop .app-tagline {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 24px;
+        padding: 0 8px;
+    }
+    
+    .sidebar-desktop .user-card {
+        background: #121212;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .sidebar-desktop .user-card .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #007aff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+        color: white;
+    }
+    
+    .sidebar-desktop .user-card .user-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .sidebar-desktop .user-card .name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .sidebar-desktop .user-card .email {
+        font-size: 0.75rem;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .sidebar-desktop .nav-section-title {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #666;
+        padding: 0 8px;
+        margin-bottom: 8px;
+    }
+    
+    .sidebar-desktop .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-bottom: 4px;
+        font-size: 0.95rem;
+        color: #aaa;
+    }
+    
+    .sidebar-desktop .nav-item:hover {
+        background: #1a1a1a;
+        color: #fff;
+    }
+    
+    .sidebar-desktop .nav-item.active {
+        background: rgba(0, 122, 255, 0.15);
+        color: #007aff;
+    }
+    
+    /* Main content area */
+    .main-content {
+        margin-left: 240px; /* Space for sidebar */
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        background: #000;
+        min-height: 100vh;
+    }
+    
+    /* Keep centered layout inside main-content */
+    .viewing-area,
+    .interaction-area,
+    #editor-screen,
+    #story-detail-screen,
+    #bible-screen,
+    #bible-editor-screen {
+        max-width: 768px;
+        width: 100%;
+        margin: 0 auto;
+        left: auto !important;
+        transform: none !important;
+        position: relative;
+    }
+    
+    /* Viewing area di desktop */
+    .viewing-area {
+        flex: none;
+        padding: 32px 24px 16px;
+    }
+    
+    /* Interaction area di desktop */
+    .interaction-area {
+        border-radius: 26px;
+        margin: 0 auto 24px;
+        min-height: auto;
+    }
+    
+    /* Full screen overlays tetap di tengah */
+    #editor-screen,
+    #story-detail-screen,
+    #bible-screen,
+    #bible-editor-screen {
+        position: fixed;
+        top: 0;
+        left: 240px !important; /* Start after sidebar */
+        right: 0;
+        width: auto;
+        max-width: none;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        background: rgba(0,0,0,0.9);
+    }
+    
+    /* Inner container untuk centered content */
+    #editor-screen > *,
+    #story-detail-screen > *,
+    #bible-screen > *,
+    #bible-editor-screen > * {
+        max-width: 768px;
+        width: 100%;
+    }
+    
+    /* FAB position */
+    .fab-action {
+        right: calc((100vw - 240px - 768px) / 2 + 24px);
+    }
+    
+    /* Stats desktop */
+    .dashboard-stats {
+        gap: 20px;
+    }
+    
+    .focus-block {
+        padding: 24px;
+    }
+    
+    .focus-block .count {
+        font-size: 2.5rem;
+    }
+    
+    /* Project grid */
+    .project-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    
+    .project-card {
+        margin-bottom: 0;
+    }
+    
+    /* Editor desktop */
+    .editor-workspace {
+        padding: 32px;
+    }
+    
+    #chapter-content {
+        min-height: 400px;
+    }
+    
+    /* Detail desktop */
+    .detail-workspace {
+        padding: 32px;
+    }
+    
+    /* Bible desktop */
+    #bible-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+    }
+    
+    .bible-card {
+        margin-bottom: 0;
+    }
+}
 
+/* Hide sidebar on mobile/tablet */
+.sidebar-desktop {
+    display: none;
+}
+
+/* =========================================
+   TABLET (768px - 1023px) - Centered tetap
+   ========================================= */
+@media (min-width: 768px) and (max-width: 1023px) {
+    body {
+        max-width: 768px;
+        margin: 0 auto;
+        border-left: 1px solid #1a1a1a;
+        border-right: 1px solid #1a1a1a;
+    }
+    
+    .dashboard-stats {
+        gap: 20px;
+    }
+    
+    .focus-block {
+        padding: 20px;
+    }
+    
+    .focus-block .count {
+        font-size: 2.2rem;
+    }
+}
