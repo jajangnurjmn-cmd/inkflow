@@ -33,7 +33,7 @@ function readFile(file) {
 // ==========================================================================
 async function mintaPersistStorage() {
     if (!navigator.storage || !navigator.storage.persist) return;
-    
+
     const isPersisted = await navigator.storage.persisted();
     if (!isPersisted) {
         const granted = await navigator.storage.persist();
@@ -50,7 +50,7 @@ const request = indexedDB.open(DB_NAME, DB_VERSION);
 
 request.onupgradeneeded = function(event) {
     const dbInstance = event.target.result;
-    
+
     if (!dbInstance.objectStoreNames.contains('stories')) {
         dbInstance.createObjectStore('stories', { keyPath: 'id', autoIncrement: true });
     }
@@ -75,19 +75,19 @@ request.onerror = function(event) {
 };
 
 // ==========================================================================
-// 3. BACKUP & RESTORE (Fitur Baru - Kritis!)
+// 3. BACKUP & RESTORE (Manual - Tidak Auto)
 // ==========================================================================
 
 // Export SEMUA data ke JSON
 function exportSemuaData() {
     if (!db) { alert("Database belum siap!"); return; }
-    
+
     const transaction = db.transaction(['stories', 'chapters', 'story_bible'], 'readonly');
-    
+
     const storiesStore = transaction.objectStore('stories');
     const chaptersStore = transaction.objectStore('chapters');
     const bibleStore = transaction.objectStore('story_bible');
-    
+
     Promise.all([
         new Promise(r => storiesStore.getAll().onsuccess = e => r(e.target.result)),
         new Promise(r => chaptersStore.getAll().onsuccess = e => r(e.target.result)),
@@ -99,11 +99,11 @@ function exportSemuaData() {
             exportedAt: new Date().toISOString(),
             data: { stories, chapters, bibles }
         };
-        
+
         const jsonStr = JSON.stringify(backupData, null, 2);
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         downloadFile(jsonStr, `Writer_Backup_${timestamp}.json`);
-        
+
         // Update UI
         const statusEl = document.querySelector('.status-sync');
         if (statusEl) {
@@ -120,67 +120,58 @@ function exportSemuaData() {
 // Import data dari JSON
 function importData(file) {
     if (!db) { alert("Database belum siap!"); return; }
-    
+
     readFile(file).then(content => {
         try {
             const backup = JSON.parse(content);
             if (!backup.data) throw new Error("Format file tidak valid!");
-            
+
             if (!confirm("⚠️ PERHATIAN!\nData yang diimport akan MENIMPA data yang ada sekarang.\nYakin ingin melanjutkan?")) {
                 return;
             }
-            
+
             const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
-            
+
             // Clear semua data lama
             tx.objectStore('stories').clear();
             tx.objectStore('chapters').clear();
             tx.objectStore('story_bible').clear();
-            
+
             tx.oncomplete = () => {
                 const tx2 = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
-                
+
                 // Restore stories
                 const storiesStore = tx2.objectStore('stories');
                 backup.data.stories.forEach(s => {
                     delete s.id; // Hapus ID lama, biar auto-increment baru
                     storiesStore.add(s);
                 });
-                
+
                 // Restore chapters
                 const chaptersStore = tx2.objectStore('chapters');
                 backup.data.chapters.forEach(c => {
                     delete c.id;
                     chaptersStore.add(c);
                 });
-                
+
                 // Restore bibles
                 const bibleStore = tx2.objectStore('story_bible');
                 backup.data.bibles.forEach(b => {
                     delete b.id;
                     bibleStore.add(b);
                 });
-                
+
                 tx2.oncomplete = () => {
                     alert("✅ Data berhasil direstore!");
                     loadDashboardData();
                     location.reload(); // Refresh biar data baru ke-load
                 };
             };
-            
+
         } catch (err) {
             alert("❌ Gagal import: " + err.message);
         }
     });
-}
-
-// Auto-backup setiap perubahan (throttled)
-let backupTimeout;
-function autoBackup() {
-    clearTimeout(backupTimeout);
-    backupTimeout = setTimeout(() => {
-        exportSemuaData();
-    }, 30000); // Backup otomatis tiap 30 detik setelah perubahan
 }
 
 // ==========================================================================
@@ -189,7 +180,7 @@ function autoBackup() {
 function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
     const transaction = db.transaction(['stories'], 'readwrite');
     const store = transaction.objectStore('stories');
-    
+
     const ceritaBaru = {
         judul: judul,
         sinopsis: sinopsis,
@@ -197,10 +188,9 @@ function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
         status: status,
         createdAt: new Date().toISOString()
     };
-    
+
     store.add(ceritaBaru).onsuccess = function() {
         loadDashboardData();
-        autoBackup(); // Trigger auto-backup
     };
 }
 
@@ -213,7 +203,7 @@ function loadDashboardData() {
 
     getAllRequest.onsuccess = function(event) {
         const semuaCerita = event.target.result;
-        
+
         let hitungDraft = 0;
         let hitungEditing = 0;
         let hitungPublished = 0;
@@ -227,14 +217,14 @@ function loadDashboardData() {
         const elDraft = document.getElementById('count-draft');
         const elEditing = document.getElementById('count-editing');
         const elPublished = document.getElementById('count-published');
-        
+
         if(elDraft) elDraft.innerText = hitungDraft;
         if(elEditing) elEditing.innerText = hitungEditing;
         if(elPublished) elPublished.innerText = hitungPublished;
-        
+
         const projectList = document.querySelector('.project-list');
         projectList.innerHTML = '<h2>Proyek Aktif</h2>';
-        
+
         if (semuaCerita.length === 0) {
             projectList.innerHTML += '<p style="color: #888; font-size: 0.9rem; text-align: center; margin-top: 20px;">Belum ada cerita. Klik tombol di bawah untuk mulai.</p>';
             return;
@@ -244,7 +234,7 @@ function loadDashboardData() {
             const card = document.createElement('div');
             card.className = 'focus-block project-card';
             card.style.cursor = 'pointer';
-            
+
             card.onclick = () => bukaDetailCerita(cerita);
 
             const statusClass = cerita.status.toLowerCase() === 'editing' ? 'badge-editing' : (cerita.status.toLowerCase() === 'published' ? 'badge-published' : 'badge-draft');
@@ -265,7 +255,7 @@ function loadDashboardData() {
                 e.stopPropagation(); 
                 const judulBaru = prompt("Edit Judul:", cerita.judul);
                 if (judulBaru === null) return; 
-                
+
                 const sinopsisBaru = prompt("Edit Sinopsis:", cerita.sinopsis);
                 const tagBaru = prompt("Edit Tag:", cerita.tag);
 
@@ -276,7 +266,6 @@ function loadDashboardData() {
 
                 tx.objectStore('stories').put(cerita).onsuccess = () => {
                     loadDashboardData();
-                    autoBackup();
                 };
             };
 
@@ -288,7 +277,7 @@ function loadDashboardData() {
                 if(confirm(`PERINGATAN FATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen? Seluruh Chapter dan Story Bible di dalamnya akan ikut lenyap.`)) {
                     const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
                     tx.objectStore('stories').delete(cerita.id);
-                    
+
                     tx.objectStore('chapters').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
@@ -296,7 +285,7 @@ function loadDashboardData() {
                             cursor.continue();
                         }
                     };
-                    
+
                     tx.objectStore('story_bible').openCursor().onsuccess = (event) => {
                         const cursor = event.target.result;
                         if(cursor) {
@@ -306,7 +295,6 @@ function loadDashboardData() {
                     };
                     tx.oncomplete = () => {
                         loadDashboardData();
-                        autoBackup();
                     }; 
                 }
             };
@@ -349,17 +337,17 @@ function bukaDetailCerita(cerita) {
     document.querySelector('.viewing-area').classList.add('hidden');
     document.querySelector('.interaction-area').classList.add('hidden');
     document.querySelector('.fab-action').classList.add('hidden');
-    
+
     const detailScreen = document.getElementById('story-detail-screen');
     detailScreen.classList.remove('hidden');
     detailScreen.dataset.activeStoryId = cerita.id;
-    
+
     document.getElementById('detail-story-title').innerText = cerita.judul;
     document.getElementById('detail-story-synopsis').innerText = cerita.sinopsis;
-    
+
     const dropdown = document.getElementById('story-status-dropdown');
     if (dropdown) dropdown.value = cerita.status;
-    
+
     muatDaftarChapter(cerita.id);
 }
 
@@ -383,7 +371,7 @@ function muatDaftarChapter(storyId) {
             const chCard = document.createElement('div');
             chCard.className = 'chapter-card';
             chCard.onclick = () => bukaEditor(storyId, ch);
-            
+
             chCard.innerHTML = `
                 <h4>${ch.judulChapter}</h4>
                 <span>Terakhir diubah: ${new Date(ch.terakhirDiubah).toLocaleDateString('id-ID')}</span>
@@ -398,7 +386,7 @@ function bukaEditor(storyId, dataChapter = null) {
     const editorScreen = document.getElementById('editor-screen');
     editorScreen.classList.remove('hidden');
     editorScreen.dataset.activeStoryId = storyId;
-    
+
     if (dataChapter) {
         editorScreen.dataset.activeChapterId = dataChapter.id;
         document.getElementById('editor-title').innerText = "Edit Chapter";
@@ -427,7 +415,7 @@ function tutupEditor() {
         const storyId = editorScreen.dataset.activeStoryId;
         editorScreen.classList.add('hidden');
         delete editorScreen.dataset.activeChapterId; 
-        
+
         const transaction = db.transaction(['stories'], 'readonly');
         transaction.objectStore('stories').get(Number(storyId)).onsuccess = function(event) {
             bukaDetailCerita(event.target.result);
@@ -445,7 +433,7 @@ function simpanDraftChapter(callback = null) {
     const editorScreen = document.getElementById('editor-screen');
     const storyId = Number(editorScreen.dataset.activeStoryId);
     let chapterId = editorScreen.dataset.activeChapterId; 
-    
+
     const judulChapter = document.getElementById('chapter-title').value;
     const isiKonten = document.getElementById('chapter-content').value;
 
@@ -475,7 +463,6 @@ function simpanDraftChapter(callback = null) {
     request.onsuccess = (event) => {
         if (!chapterId) editorScreen.dataset.activeChapterId = event.target.result; 
         indikatorTersimpan();
-        autoBackup(); // Trigger auto-backup setelah simpan
         if (typeof callback === 'function') callback();
     };
 }
@@ -506,7 +493,7 @@ function bukaBibleList() {
     document.getElementById('story-detail-screen').classList.add('hidden');
     const detailScreen = document.getElementById('story-detail-screen');
     const bibleScreen = document.getElementById('bible-screen');
-    
+
     bibleScreen.classList.remove('hidden');
     bibleScreen.dataset.activeStoryId = detailScreen.dataset.activeStoryId;
     muatDaftarBible();
@@ -519,7 +506,7 @@ function muatDaftarBible() {
 
     const transaction = db.transaction(['story_bible'], 'readonly');
     const store = transaction.objectStore('story_bible');
-    
+
     store.getAll().onsuccess = function(event) {
         const semuaBible = event.target.result;
         const bibleCeritaIni = semuaBible.filter(b => b.storyId === storyId);
@@ -577,7 +564,7 @@ function simpanBibleEntry() {
     const storyId = Number(document.getElementById('bible-screen').dataset.activeStoryId);
     const editorScreen = document.getElementById('bible-editor-screen');
     const bibleId = editorScreen.dataset.activeBibleId;
-    
+
     const kategori = document.getElementById('bible-category').value;
     const nama = document.getElementById('bible-entry-title').value;
     const deskripsi = document.getElementById('bible-entry-content').value;
@@ -593,13 +580,11 @@ function simpanBibleEntry() {
         store.put(dataBaru).onsuccess = () => { 
             tutupBibleEditor(); 
             muatDaftarBible(); 
-            autoBackup();
         };
     } else {
         store.add(dataBaru).onsuccess = () => { 
             tutupBibleEditor(); 
             muatDaftarBible(); 
-            autoBackup();
         };
     }
 }
@@ -611,7 +596,7 @@ function exportCeritaKeTXT() {
 
     const transaction = db.transaction(['chapters'], 'readonly');
     const store = transaction.objectStore('chapters');
-    
+
     store.getAll().onsuccess = function(event) {
         const semuaChapter = event.target.result;
         const chapterCeritaIni = semuaChapter.filter(ch => ch.storyId === storyId);
@@ -651,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnBackDashboard = document.getElementById('btn-back-dashboard');
     if (btnBackDashboard) btnBackDashboard.addEventListener('click', kembaliKeDashboard);
-    
+
     const btnNewChapter = document.getElementById('btn-new-chapter');
     if (btnNewChapter) btnNewChapter.addEventListener('click', () => {
         const storyId = document.getElementById('story-detail-screen').dataset.activeStoryId;
@@ -678,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(waktuKetik);
         simpanDraftChapter();
     });
-    
+
     // Status Dropdown
     const statusDropdown = document.getElementById('story-status-dropdown');
     if (statusDropdown) {
@@ -687,14 +672,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusBaru = e.target.value;
             const transaction = db.transaction(['stories'], 'readwrite');
             const store = transaction.objectStore('stories');
-            
+
             store.get(storyId).onsuccess = function(event) {
                 const dataCerita = event.target.result;
                 if (dataCerita) {
                     dataCerita.status = statusBaru;
                     store.put(dataCerita).onsuccess = () => {
                         statusDropdown.style.color = '#4cd964';
-                        autoBackup(); // Trigger backup
                         setTimeout(() => { statusDropdown.style.color = '#fff'; }, 1000);
                     };
                 }
