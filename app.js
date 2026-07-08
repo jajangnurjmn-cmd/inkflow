@@ -32,7 +32,7 @@ let localDb = null;
 // INDEXEDDB FALLBACK
 // ==========================================================================
 const DB_NAME = 'WriterPWADB';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 
 function initLocalDb() {
     return new Promise((resolve, reject) => {
