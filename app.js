@@ -956,26 +956,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         bukaEditor(storyId, null);
     });
 
-    // Auto-Save Editor
-    const areaKetikan = document.getElementById('chapter-content');
-    const areaJudul = document.getElementById('chapter-title');
-    const tombolSimpan = document.getElementById('btn-save');
+   // Auto-Save Editor (Rich Text)
+const editorContent = document.getElementById('chapter-content');
+const areaJudul = document.getElementById('chapter-title');
+const tombolSimpan = document.getElementById('btn-save');
 
-    if (areaKetikan) areaKetikan.addEventListener('keyup', () => {
+if (editorContent) {
+    editorContent.addEventListener('input', () => {
         hitungKata();
         clearTimeout(waktuKetik);
         waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
     });
+}
 
-    if (areaJudul) areaJudul.addEventListener('keyup', () => {
-        clearTimeout(waktuKetik);
-        waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-    });
+if (areaJudul) areaJudul.addEventListener('keyup', () => {
+    clearTimeout(waktuKetik);
+    waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
+});
 
-    if (tombolSimpan) tombolSimpan.addEventListener('click', () => {
-        clearTimeout(waktuKetik);
-        simpanDraftChapter();
-    });
+if (tombolSimpan) tombolSimpan.addEventListener('click', () => {
+    clearTimeout(waktuKetik);
+    simpanDraftChapter();
+});
     
     // Status Dropdown
     const statusDropdown = document.getElementById('story-status-dropdown');
