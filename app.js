@@ -84,28 +84,12 @@ function updateAuthUI(user) {
     const userName = document.getElementById('user-name');
     const statusEl = document.querySelector('.status-sync');
     
-    // SIDEBAR DESKTOP ELEMENTS
-    const sidebarName = document.getElementById('sidebar-name');
-    const sidebarEmail = document.getElementById('sidebar-email');
-    const sidebarAvatar = document.getElementById('sidebar-avatar');
-    const btnLogoutDesktop = document.getElementById('btn-logout-desktop');
-    
     if (user) {
         currentUser = user;
         if (btnLogin) btnLogin.classList.add('hidden');
         if (btnLogout) btnLogout.classList.remove('hidden');
         if (userName) userName.innerText = user.displayName || user.email;
         if (statusEl) statusEl.innerText = '🔄 Syncing...';
-        
-        // UPDATE SIDEBAR DESKTOP
-        if (sidebarName) sidebarName.innerText = user.displayName || 'User';
-        if (sidebarEmail) sidebarEmail.innerText = user.email || 'Synced';
-        if (sidebarAvatar) sidebarAvatar.innerText = (user.displayName || 'U')[0].toUpperCase();
-        if (btnLogoutDesktop) {
-            btnLogoutDesktop.style.display = 'block';
-            btnLogoutDesktop.onclick = logout;
-        }
-        
         setupRealtimeSync();
     } else {
         currentUser = null;
@@ -113,13 +97,6 @@ function updateAuthUI(user) {
         if (btnLogout) btnLogout.classList.add('hidden');
         if (userName) userName.innerText = '';
         if (statusEl) statusEl.innerText = '⚡ Mode Lokal (Login untuk sync)';
-        
-        // RESET SIDEBAR DESKTOP
-        if (sidebarName) sidebarName.innerText = 'Guest';
-        if (sidebarEmail) sidebarEmail.innerText = 'Login untuk sync';
-        if (sidebarAvatar) sidebarAvatar.innerText = 'G';
-        if (btnLogoutDesktop) btnLogoutDesktop.style.display = 'none';
-        
         syncListeners.forEach(unsub => unsub());
         syncListeners = [];
     }
