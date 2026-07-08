@@ -1,10 +1,51 @@
 // ==========================================================================
-// 1. INISIALISASI DATABASE LOCAL-FIRST (IndexedDB)
+// 0. KONFIGURASI & UTILITAS
 // ==========================================================================
 const DB_NAME = 'WriterPWADB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Naikkan versi untuk upgrade schema
 let db;
 
+// Utility: Download file
+function downloadFile(content, filename, type = 'application/json') {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Utility: Baca file
+function readFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+    });
+}
+
+// ==========================================================================
+// 1. PERSIST STORAGE (Anti-Hapus Otomatis)
+// ==========================================================================
+async function mintaPersistStorage() {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    
+    const isPersisted = await navigator.storage.persisted();
+    if (!isPersisted) {
+        const granted = await navigator.storage.persist();
+        console.log(granted ? "✅ Storage persistence DITERIMA!" : "❌ Storage persistence DITOLAK.");
+    } else {
+        console.log("✅ Storage sudah persistent.");
+    }
+}
+
+// ==========================================================================
+// 2. INISIALISASI DATABASE (IndexedDB v2)
+// ==========================================================================
 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
 request.onupgradeneeded = function(event) {
@@ -25,6 +66,7 @@ request.onupgradeneeded = function(event) {
 request.onsuccess = function(event) {
     db = event.target.result;
     console.log("Database berhasil dibuka.");
+    mintaPersistStorage(); // Minta persist saat DB siap
     loadDashboardData();
 };
 
@@ -33,7 +75,116 @@ request.onerror = function(event) {
 };
 
 // ==========================================================================
-// 2. LOGIKA OPERASI DATA & DASHBOARD
+// 3. BACKUP & RESTORE (Fitur Baru - Kritis!)
+// ==========================================================================
+
+// Export SEMUA data ke JSON
+function exportSemuaData() {
+    if (!db) { alert("Database belum siap!"); return; }
+    
+    const transaction = db.transaction(['stories', 'chapters', 'story_bible'], 'readonly');
+    
+    const storiesStore = transaction.objectStore('stories');
+    const chaptersStore = transaction.objectStore('chapters');
+    const bibleStore = transaction.objectStore('story_bible');
+    
+    Promise.all([
+        new Promise(r => storiesStore.getAll().onsuccess = e => r(e.target.result)),
+        new Promise(r => chaptersStore.getAll().onsuccess = e => r(e.target.result)),
+        new Promise(r => bibleStore.getAll().onsuccess = e => r(e.target.result))
+    ]).then(([stories, chapters, bibles]) => {
+        const backupData = {
+            app: "Dashboard Penulis",
+            version: "1.0",
+            exportedAt: new Date().toISOString(),
+            data: { stories, chapters, bibles }
+        };
+        
+        const jsonStr = JSON.stringify(backupData, null, 2);
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        downloadFile(jsonStr, `Writer_Backup_${timestamp}.json`);
+        
+        // Update UI
+        const statusEl = document.querySelector('.status-sync');
+        if (statusEl) {
+            statusEl.innerText = '✅ Backup berhasil!';
+            statusEl.style.color = '#4cd964';
+            setTimeout(() => {
+                statusEl.innerText = 'Data tersimpan lokal ⚡';
+                statusEl.style.color = '';
+            }, 3000);
+        }
+    });
+}
+
+// Import data dari JSON
+function importData(file) {
+    if (!db) { alert("Database belum siap!"); return; }
+    
+    readFile(file).then(content => {
+        try {
+            const backup = JSON.parse(content);
+            if (!backup.data) throw new Error("Format file tidak valid!");
+            
+            if (!confirm("⚠️ PERHATIAN!\nData yang diimport akan MENIMPA data yang ada sekarang.\nYakin ingin melanjutkan?")) {
+                return;
+            }
+            
+            const tx = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
+            
+            // Clear semua data lama
+            tx.objectStore('stories').clear();
+            tx.objectStore('chapters').clear();
+            tx.objectStore('story_bible').clear();
+            
+            tx.oncomplete = () => {
+                const tx2 = db.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
+                
+                // Restore stories
+                const storiesStore = tx2.objectStore('stories');
+                backup.data.stories.forEach(s => {
+                    delete s.id; // Hapus ID lama, biar auto-increment baru
+                    storiesStore.add(s);
+                });
+                
+                // Restore chapters
+                const chaptersStore = tx2.objectStore('chapters');
+                backup.data.chapters.forEach(c => {
+                    delete c.id;
+                    chaptersStore.add(c);
+                });
+                
+                // Restore bibles
+                const bibleStore = tx2.objectStore('story_bible');
+                backup.data.bibles.forEach(b => {
+                    delete b.id;
+                    bibleStore.add(b);
+                });
+                
+                tx2.oncomplete = () => {
+                    alert("✅ Data berhasil direstore!");
+                    loadDashboardData();
+                    location.reload(); // Refresh biar data baru ke-load
+                };
+            };
+            
+        } catch (err) {
+            alert("❌ Gagal import: " + err.message);
+        }
+    });
+}
+
+// Auto-backup setiap perubahan (throttled)
+let backupTimeout;
+function autoBackup() {
+    clearTimeout(backupTimeout);
+    backupTimeout = setTimeout(() => {
+        exportSemuaData();
+    }, 30000); // Backup otomatis tiap 30 detik setelah perubahan
+}
+
+// ==========================================================================
+// 4. LOGIKA OPERASI DATA & DASHBOARD
 // ==========================================================================
 function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
     const transaction = db.transaction(['stories'], 'readwrite');
@@ -49,6 +200,7 @@ function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
     
     store.add(ceritaBaru).onsuccess = function() {
         loadDashboardData();
+        autoBackup(); // Trigger auto-backup
     };
 }
 
@@ -122,7 +274,10 @@ function loadDashboardData() {
                 cerita.sinopsis = sinopsisBaru || cerita.sinopsis;
                 cerita.tag = tagBaru || cerita.tag;
 
-                tx.objectStore('stories').put(cerita).onsuccess = () => loadDashboardData();
+                tx.objectStore('stories').put(cerita).onsuccess = () => {
+                    loadDashboardData();
+                    autoBackup();
+                };
             };
 
             const btnDel = document.createElement('button');
@@ -149,7 +304,10 @@ function loadDashboardData() {
                             cursor.continue();
                         }
                     };
-                    tx.oncomplete = () => loadDashboardData(); 
+                    tx.oncomplete = () => {
+                        loadDashboardData();
+                        autoBackup();
+                    }; 
                 }
             };
 
@@ -162,7 +320,7 @@ function loadDashboardData() {
 }
 
 // ==========================================================================
-// 3. SERVICE WORKER & UI AWAL
+// 5. SERVICE WORKER & UI AWAL
 // ==========================================================================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -185,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================================
-// 4. ARSITEKTUR NAVIGASI & EDITOR
+// 6. ARSITEKTUR NAVIGASI & EDITOR
 // ==========================================================================
 function bukaDetailCerita(cerita) {
     document.querySelector('.viewing-area').classList.add('hidden');
@@ -209,7 +367,7 @@ function muatDaftarChapter(storyId) {
     const transaction = db.transaction(['chapters'], 'readonly');
     const store = transaction.objectStore('chapters');
     const container = document.getElementById('chapters-container');
-    if (!container) return; // Keamanan tambahan
+    if (!container) return;
     container.innerHTML = '';
 
     store.getAll().onsuccess = function(event) {
@@ -278,7 +436,7 @@ function tutupEditor() {
 }
 
 // ==========================================================================
-// 5. EDITOR UTAMA & AUTO-SAVE
+// 7. EDITOR UTAMA & AUTO-SAVE
 // ==========================================================================
 let waktuKetik;
 const JEDA_SIMPAN = 2000;
@@ -317,6 +475,7 @@ function simpanDraftChapter(callback = null) {
     request.onsuccess = (event) => {
         if (!chapterId) editorScreen.dataset.activeChapterId = event.target.result; 
         indikatorTersimpan();
+        autoBackup(); // Trigger auto-backup setelah simpan
         if (typeof callback === 'function') callback();
     };
 }
@@ -341,7 +500,7 @@ function hitungKata() {
 }
 
 // ==========================================================================
-// 6. STORY BIBLE & EXPORT
+// 8. STORY BIBLE & EXPORT
 // ==========================================================================
 function bukaBibleList() {
     document.getElementById('story-detail-screen').classList.add('hidden');
@@ -431,9 +590,17 @@ function simpanBibleEntry() {
     const dataBaru = { storyId, kategori, nama, deskripsi, terakhirDiubah: new Date().toISOString() };
     if (bibleId) {
         dataBaru.id = Number(bibleId);
-        store.put(dataBaru).onsuccess = () => { tutupBibleEditor(); muatDaftarBible(); };
+        store.put(dataBaru).onsuccess = () => { 
+            tutupBibleEditor(); 
+            muatDaftarBible(); 
+            autoBackup();
+        };
     } else {
-        store.add(dataBaru).onsuccess = () => { tutupBibleEditor(); muatDaftarBible(); };
+        store.add(dataBaru).onsuccess = () => { 
+            tutupBibleEditor(); 
+            muatDaftarBible(); 
+            autoBackup();
+        };
     }
 }
 
@@ -475,7 +642,7 @@ function exportCeritaKeTXT() {
 }
 
 // ==========================================================================
-// 7. SEMUA EVENT LISTENER
+// 9. SEMUA EVENT LISTENER
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     // Navigasi
@@ -527,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataCerita.status = statusBaru;
                     store.put(dataCerita).onsuccess = () => {
                         statusDropdown.style.color = '#4cd964';
+                        autoBackup(); // Trigger backup
                         setTimeout(() => { statusDropdown.style.color = '#fff'; }, 1000);
                     };
                 }
