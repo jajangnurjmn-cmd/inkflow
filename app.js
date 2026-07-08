@@ -1,17 +1,25 @@
 // ==========================================================================
-// FIREBASE IMPORTS (Dari window object yang di-set di HTML)
+// FIREBASE (Dari global window object)
 // ==========================================================================
-const { 
-    collection, doc, setDoc, getDoc, getDocs, deleteDoc, 
-    onSnapshot, query, where, enableIndexedDbPersistence 
-} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-const { 
-    signInWithPopup, onAuthStateChanged, signOut 
-} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-
 const db = window.db;
 const auth = window.auth;
 const provider = window.provider;
+
+// Firestore methods
+const collection = (db, ...path) => db.collection(path.join('/'));
+const doc = (db, ...path) => db.doc(path.join('/'));
+const setDoc = (ref, data) => ref.set(data, { merge: true });
+const getDoc = (ref) => ref.get();
+const getDocs = (ref) => ref.get();
+const deleteDoc = (ref) => ref.delete();
+const onSnapshot = (ref, callback, errorCallback) => ref.onSnapshot(callback, errorCallback);
+const query = (ref, ...constraints) => ref; // Simplified
+const where = (field, op, value) => null; // Simplified
+
+// Auth methods
+const signInWithPopup = (auth, provider) => auth.signInWithPopup(provider);
+const onAuthStateChanged = (auth, callback) => auth.onAuthStateChanged(callback);
+const signOut = (auth) => auth.signOut();
 
 // ==========================================================================
 // STATE MANAGEMENT
@@ -19,10 +27,9 @@ const provider = window.provider;
 let currentUser = null;
 let isOnline = navigator.onLine;
 let localDb = null;
-let syncListeners = []; // Untuk cleanup listeners
 
 // ==========================================================================
-// INDEXEDDB FALLBACK (Untuk offline & data lokal)
+// INDEXEDDB FALLBACK
 // ==========================================================================
 const DB_NAME = 'WriterPWADB';
 const DB_VERSION = 1;
@@ -62,14 +69,11 @@ async function login() {
 async function logout() {
     try {
         await signOut(auth);
-        // Clear local data
         const tx = localDb.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
         tx.objectStore('stories').clear();
         tx.objectStore('chapters').clear();
         tx.objectStore('story_bible').clear();
-        tx.oncomplete = () => {
-            location.reload();
-        };
+        tx.oncomplete = () => location.reload();
     } catch (err) {
         console.error("Logout gagal:", err);
     }
@@ -87,7 +91,6 @@ function updateAuthUI(user) {
         if (btnLogout) btnLogout.classList.remove('hidden');
         if (userName) userName.innerText = user.displayName || user.email;
         if (statusEl) statusEl.innerText = '🔄 Syncing...';
-        
         setupRealtimeSync();
     } else {
         currentUser = null;
@@ -95,20 +98,13 @@ function updateAuthUI(user) {
         if (btnLogout) btnLogout.classList.add('hidden');
         if (userName) userName.innerText = '';
         if (statusEl) statusEl.innerText = '⚡ Mode Lokal (Login untuk sync)';
-        
-        // Cleanup listeners
-        syncListeners.forEach(unsub => unsub());
-        syncListeners = [];
     }
 }
 
 // ==========================================================================
-// SYNC ENGINE (Firestore + IndexedDB Hybrid)
+// SYNC ENGINE
 // ==========================================================================
-function getUserRef() {
-    if (!currentUser) return null;
-    return doc(db, 'users', currentUser.uid);
-}
+let syncListeners = [];
 
 function setupRealtimeSync() {
     if (!currentUser) return;
@@ -116,9 +112,8 @@ function setupRealtimeSync() {
     const userId = currentUser.uid;
     
     // Listen Stories
-    const storiesUnsub = onSnapshot(
-        collection(db, 'users', userId, 'stories'),
-        (snapshot) => {
+    const storiesUnsub = db.collection('users').doc(userId).collection('stories')
+        .onSnapshot((snapshot) => {
             snapshot.docChanges().forEach(change => {
                 const data = { ...change.doc.data(), id: change.doc.id };
                 const tx = localDb.transaction(['stories'], 'readwrite');
@@ -132,18 +127,15 @@ function setupRealtimeSync() {
             });
             loadDashboardData();
             updateSyncStatus('✅ Synced');
-        },
-        (err) => {
+        }, (err) => {
             console.error("Sync error:", err);
             updateSyncStatus('⚠️ Sync error');
-        }
-    );
+        });
     syncListeners.push(storiesUnsub);
     
     // Listen Chapters
-    const chaptersUnsub = onSnapshot(
-        collection(db, 'users', userId, 'chapters'),
-        (snapshot) => {
+    const chaptersUnsub = db.collection('users').doc(userId).collection('chapters')
+        .onSnapshot((snapshot) => {
             snapshot.docChanges().forEach(change => {
                 const data = { ...change.doc.data(), id: change.doc.id };
                 const tx = localDb.transaction(['chapters'], 'readwrite');
@@ -155,19 +147,16 @@ function setupRealtimeSync() {
                     store.put(data);
                 }
             });
-            // Refresh chapter list kalau lagi di detail
             const detailScreen = document.getElementById('story-detail-screen');
             if (!detailScreen.classList.contains('hidden')) {
                 muatDaftarChapter(detailScreen.dataset.activeStoryId);
             }
-        }
-    );
+        });
     syncListeners.push(chaptersUnsub);
     
     // Listen Bibles
-    const biblesUnsub = onSnapshot(
-        collection(db, 'users', userId, 'bibles'),
-        (snapshot) => {
+    const biblesUnsub = db.collection('users').doc(userId).collection('bibles')
+        .onSnapshot((snapshot) => {
             snapshot.docChanges().forEach(change => {
                 const data = { ...change.doc.data(), id: change.doc.id };
                 const tx = localDb.transaction(['story_bible'], 'readwrite');
@@ -179,13 +168,11 @@ function setupRealtimeSync() {
                     store.put(data);
                 }
             });
-            // Refresh bible list kalau lagi di bible screen
             const bibleScreen = document.getElementById('bible-screen');
             if (!bibleScreen.classList.contains('hidden')) {
                 muatDaftarBible();
             }
-        }
-    );
+        });
     syncListeners.push(biblesUnsub);
 }
 
@@ -198,21 +185,16 @@ function updateSyncStatus(status) {
 }
 
 // ==========================================================================
-// CRUD OPERATIONS (Firestore + IndexedDB)
+// CRUD OPERATIONS
 // ==========================================================================
-async function saveToFirestore(collectionName, data, docId = null) {
+async function saveToFirestore(collectionName, data, docId) {
     if (!currentUser || !isOnline) return;
     
     try {
-        const ref = docId 
-            ? doc(db, 'users', currentUser.uid, collectionName, docId)
-            : doc(collection(db, 'users', currentUser.uid, collectionName));
-        
-        await setDoc(ref, data, { merge: true });
-        return ref.id;
+        const ref = db.collection('users').doc(currentUser.uid).collection(collectionName).doc(docId);
+        await ref.set(data, { merge: true });
     } catch (err) {
         console.error("Firestore save error:", err);
-        throw err;
     }
 }
 
@@ -220,14 +202,14 @@ async function deleteFromFirestore(collectionName, docId) {
     if (!currentUser || !isOnline) return;
     
     try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, collectionName, docId));
+        await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(docId).delete();
     } catch (err) {
         console.error("Firestore delete error:", err);
     }
 }
 
 // ==========================================================================
-// DASHBOARD FUNCTIONS
+// DASHBOARD
 // ==========================================================================
 function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
     const id = 'story_' + Date.now();
@@ -241,11 +223,9 @@ function tambahCerita(judul, sinopsis, tag, status = 'Draft') {
         updatedAt: new Date().toISOString()
     };
     
-    // Simpan ke IndexedDB dulu
     const tx = localDb.transaction(['stories'], 'readwrite');
     tx.objectStore('stories').put(ceritaBaru).onsuccess = () => {
         loadDashboardData();
-        // Sync ke Firestore kalau online & login
         if (currentUser && isOnline) {
             saveToFirestore('stories', ceritaBaru, id);
         }
@@ -337,7 +317,6 @@ function loadDashboardData() {
             btnDel.onclick = (e) => {
                 e.stopPropagation(); 
                 if(confirm(`PERINGATAN FATAL!\nYakin ingin menghapus cerita "${cerita.judul}" secara permanen?`)) {
-                    // Hapus dari IndexedDB
                     const tx = localDb.transaction(['stories', 'chapters', 'story_bible'], 'readwrite');
                     tx.objectStore('stories').delete(cerita.id);
                     
@@ -512,7 +491,6 @@ function simpanDraftChapter(callback = null) {
         if (!chapterId) editorScreen.dataset.activeChapterId = id;
         indikatorTersimpan();
         
-        // Sync ke Firestore
         if (currentUser && isOnline) {
             saveToFirestore('chapters', dataChapter, id);
         }
@@ -635,7 +613,6 @@ function simpanBibleEntry() {
     
     const tx = localDb.transaction(['story_bible'], 'readwrite');
     tx.objectStore('story_bible').put(dataBaru).onsuccess = () => { 
-        // Sync ke Firestore
         if (currentUser && isOnline) {
             saveToFirestore('bibles', dataBaru, id);
         }
@@ -700,10 +677,7 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('online', () => {
     isOnline = true;
     updateSyncStatus('🔄 Online');
-    if (currentUser) {
-        // Re-sync semua data lokal ke Firestore
-        syncLocalToCloud();
-    }
+    if (currentUser) syncLocalToCloud();
 });
 
 window.addEventListener('offline', () => {
@@ -714,21 +688,18 @@ window.addEventListener('offline', () => {
 async function syncLocalToCloud() {
     if (!currentUser || !isOnline) return;
     
-    // Sync stories
     const storiesTx = localDb.transaction(['stories'], 'readonly');
     const stories = await new Promise(r => storiesTx.objectStore('stories').getAll().onsuccess = e => r(e.target.result));
     for (const story of stories) {
         await saveToFirestore('stories', story, story.id);
     }
     
-    // Sync chapters
     const chaptersTx = localDb.transaction(['chapters'], 'readonly');
     const chapters = await new Promise(r => chaptersTx.objectStore('chapters').getAll().onsuccess = e => r(e.target.result));
     for (const ch of chapters) {
         await saveToFirestore('chapters', ch, ch.id);
     }
     
-    // Sync bibles
     const biblesTx = localDb.transaction(['story_bible'], 'readonly');
     const bibles = await new Promise(r => biblesTx.objectStore('story_bible').getAll().onsuccess = e => r(e.target.result));
     for (const bible of bibles) {
