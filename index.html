@@ -29,13 +29,6 @@
         window.provider = new firebase.auth.GoogleAuthProvider();
         
         window.db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
-            .catch(err => {
-                if (err.code === 'failed-precondition') {
-                    console.log('Multiple tabs open');
-                } else if (err.code === 'unimplemented') {
-                    console.log('Browser tidak support persistence');
-                }
-            });
     </script>
 </head>
 <body>
