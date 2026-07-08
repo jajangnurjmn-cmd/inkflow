@@ -52,24 +52,26 @@ body {
     display: none;
 }
 
+body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
 .main-content {
     display: flex;
     flex-direction: column;
-    height: 100vh;
     width: 100%;
 }
 
 .viewing-area {
-    flex: 0 35;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 24px;
+    padding: 16px 20px 12px;
     background: var(--bg-primary);
+    flex-shrink: 0;
 }
 
 .viewing-area h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-weight: 700;
     letter-spacing: -0.5px;
     line-height: 1.1;
@@ -77,39 +79,66 @@ body {
 
 .status-sync {
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-top: 8px;
+    font-size: 0.8rem;
+    margin-top: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
 .interaction-area {
-    flex: 0 65;
+    flex: 1;
     background: var(--bg-surface);
     border-top-left-radius: var(--radius-xl);
     border-top-right-radius: var(--radius-xl);
-    padding: 24px;
+    padding: 20px;
     overflow-y: auto;
     border-top: 1px solid var(--border-subtle);
+    min-height: 50vh;
+}
+/* Mobile Header Layout Fix */
+@media (max-width: 767px) {
+    .viewing-area > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    .viewing-area > div > div:last-child {
+        width: 100%;
+        justify-content: flex-start !important;
+    }
+
+    .viewing-area h1 {
+        font-size: 1.6rem;
+    }
+
+    .fab-action {
+        bottom: 20px;
+        right: 20px;
+        padding: 14px 22px;
+        font-size: 0.95rem;
+    }
 }
 
 /* Dashboard Stats - Mobile */
 .dashboard-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 28px;
+    gap: 10px;
+    margin-bottom: 24px;
+    margin-top: 4px;
 }
 
 .focus-block {
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
-    padding: 16px;
+    padding: 14px 8px;
     border-radius: var(--radius-lg);
     text-align: center;
     transition: var(--transition);
     cursor: pointer;
+    min-width: 0;
 }
 
 .focus-block:hover {
@@ -123,16 +152,16 @@ body {
 }
 
 .focus-block h3 {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .focus-block .count {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 700;
     background: linear-gradient(135deg, #fff 0%, #ccc 100%);
     -webkit-background-clip: text;
@@ -499,6 +528,7 @@ body {
         display: flex;
         justify-content: center;
         background: #050505;
+        overflow: hidden;
     }
 
     .main-content {
