@@ -992,28 +992,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         bukaEditor(storyId, null);
     });
 
-   // Auto-Save Editor (Rich Text)
-const editorContent = document.getElementById('chapter-content');
-const areaJudul = document.getElementById('chapter-title');
-const tombolSimpan = document.getElementById('btn-save');
+    // Auto-Save Editor (Rich Text) - GANTI INI SAJA
+    const areaJudul = document.getElementById('chapter-title');
+    const tombolSimpan = document.getElementById('btn-save');
 
-if (editorContent) {
-    editorContent.addEventListener('input', () => {
-        hitungKata();
+    // Note: Event listener untuk editor sudah di-setup di setupRichEditor()
+    
+    if (areaJudul) areaJudul.addEventListener('input', () => {
         clearTimeout(waktuKetik);
         waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
     });
-}
 
-if (areaJudul) areaJudul.addEventListener('keyup', () => {
-    clearTimeout(waktuKetik);
-    waktuKetik = setTimeout(simpanDraftChapter, JEDA_SIMPAN);
-});
-
-if (tombolSimpan) tombolSimpan.addEventListener('click', () => {
-    clearTimeout(waktuKetik);
-    simpanDraftChapter();
-});
+    if (tombolSimpan) tombolSimpan.addEventListener('click', () => {
+        clearTimeout(waktuKetik);
+        simpanDraftChapter();
+    });
     
     // Status Dropdown
     const statusDropdown = document.getElementById('story-status-dropdown');
